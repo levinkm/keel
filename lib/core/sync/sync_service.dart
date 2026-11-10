@@ -96,6 +96,10 @@ class SyncService {
     // Keep currentUser in sync with Supabase auth events
     _authSub = _client.auth.onAuthStateChange.listen((data) {
       currentUser.value = data.session?.user;
+      // Auto-populate display name from Google on first sign-in
+      if (data.event == AuthChangeEvent.signedIn) {
+        _seedDisplayNameIfEmpty(data.session?.user);
+      }
     });
 
     // Handle OAuth deep link callbacks (keel://auth/callback?...)
@@ -182,6 +186,52 @@ class SyncService {
   }
 
   bool get isSignedIn => _client.auth.currentUser != null;
+
+  /// Display name from Google metadata, falls back to email prefix.
+  String? get googleDisplayName {
+    final u = _client.auth.currentUser;
+    if (u == null) return null;
+    return u.userMetadata?['full_name'] as String? ??
+        u.userMetadata?['name'] as String? ??
+        u.email?.split('@').first;
+  }
+
+  /// Avatar URL from Google metadata.
+  String? get googleAvatarUrl {
+    final u = _client.auth.currentUser;
+    if (u == null) return null;
+    return u.userMetadata?['avatar_url'] as String? ??
+        u.userMetadata?['picture'] as String?;
+  }
+
+  /// Writes displayName to local settings the first time the user signs in
+  /// with Google, so the dashboard greeting uses their real name.
+  Future<void> _seedDisplayNameIfEmpty(User? user) async {
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString('_seededDisplayName');
+    if (existing == user.id) return; // already seeded for this user
+    final name = googleDisplayName;
+    if (name == null || name.isEmpty) return;
+    // Write directly to the settings DB table
+    final db = await AppDatabase.instance.database;
+    final current = await db.query(
+      'settings',
+      where: 'key = ?',
+      whereArgs: ['displayName'],
+      limit: 1,
+    );
+    // Only set if empty or not yet set
+    if (current.isEmpty || (current.first['value'] as String).isEmpty) {
+      final now = DateTime.now().toUtc().toIso8601String();
+      await db.insert(
+        'settings',
+        {'key': 'displayName', 'value': name, 'updated_at': now},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await prefs.setString('_seededDisplayName', user.id);
+  }
 
   /// Guard for sync operations — throws if not signed in.
   Future<void> _ensureSignedIn() async {

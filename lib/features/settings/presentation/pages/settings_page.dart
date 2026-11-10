@@ -326,12 +326,78 @@ class _ProfileSectionState extends State<_ProfileSection> {
     final currency = widget.settings['currency'] ?? 'KES';
     final fiscalStart = widget.settings['fiscalYearStart'] ?? '1';
     final dateFormat = widget.settings['dateFormat'] ?? 'dd MMM yyyy';
+    final avatarUrl = SyncService.instance.googleAvatarUrl;
+    final googleName = SyncService.instance.googleDisplayName;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _header('Profile', widget.textPrimary),
         const SizedBox(height: 20),
+        // Google account card — shown when signed in
+        if (SyncService.instance.isSignedIn) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: widget.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                // Avatar
+                ClipOval(
+                  child: avatarUrl != null
+                      ? Image.network(
+                          avatarUrl,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              _InitialsAvatar(name: googleName ?? 'U'),
+                        )
+                      : _InitialsAvatar(name: googleName ?? 'U'),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        googleName ?? '',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: widget.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        SyncService.instance.currentUser.value?.email ?? '',
+                        style: TextStyle(
+                            fontSize: 12, color: widget.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.royalBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'Google',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.royalBlue),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _card(widget.surface, [
           _row(
             label: 'Display name',
@@ -1257,14 +1323,35 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
                       else
                         _row(
                           label: 'Signed in as',
-                          sub: user.email ??
-                              user.userMetadata?['full_name'] ??
+                          sub: SyncService.instance.googleDisplayName ??
+                              user.email ??
                               'Google account',
-                          trailing: TextButton(
-                            onPressed: () => SyncService.instance.signOut(),
-                            child: const Text('Sign out',
-                                style: TextStyle(
-                                    fontSize: 12, color: AppColors.error)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (SyncService.instance.googleAvatarUrl != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 10),
+                                  child: ClipOval(
+                                    child: Image.network(
+                                      SyncService.instance.googleAvatarUrl!,
+                                      width: 28,
+                                      height: 28,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) =>
+                                          const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                ),
+                              TextButton(
+                                onPressed: () =>
+                                    SyncService.instance.signOut(),
+                                child: const Text('Sign out',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.error)),
+                              ),
+                            ],
                           ),
                           textPrimary: widget.textPrimary,
                           textSecondary: widget.textSecondary,
@@ -1393,6 +1480,40 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
     return '${dt.day} ${months[dt.month]} ${dt.year}, '
         '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ── Initials avatar fallback ────────────────────────────────────────────────────────────────────────────────────
+
+class _InitialsAvatar extends StatelessWidget {
+  final String name;
+  const _InitialsAvatar({required this.name});
+
+  String get _initials {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      color: AppColors.royalBlue,
+      child: Center(
+        child: Text(
+          _initials,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
   }
 }
 
