@@ -72,7 +72,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
   String? _contactId;
   String? _fromAccountId;
   String? _toAccountId;
-  DateTime _date = DateTime.now();
+  final DateTime _date = DateTime.now();
   bool _saving = false;
 
   @override
@@ -380,7 +380,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
                 _FieldLabel('Tag to project (optional)', textSecondary),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _projectId,
+                  initialValue: _projectId,
                   hint: Text('None',
                       style: TextStyle(fontSize: 13, color: textSecondary)),
                   decoration: InputDecoration(
@@ -431,7 +431,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
                 _FieldLabel('Contact (optional)', textSecondary),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _contactId,
+                  initialValue: _contactId,
                   hint: Text('None',
                       style: TextStyle(fontSize: 13, color: textSecondary)),
                   decoration: InputDecoration(
@@ -804,7 +804,7 @@ class _AccountPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           hint: Text('Select…',
               style: TextStyle(fontSize: 13, color: textTertiary)),
           decoration: const InputDecoration(isDense: true),

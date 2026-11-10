@@ -55,7 +55,7 @@ class _BucketEditorState extends State<BucketEditor> {
     for (final d in _drafts) {
       d.nameCtrl.dispose();
       d.pctCtrl.dispose();
-      for (final c in d.weightCtrls.values) c.dispose();
+      for (final c in d.weightCtrls.values) { c.dispose(); }
     }
     super.dispose();
   }

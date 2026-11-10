@@ -231,7 +231,7 @@ class _EntriesTab extends StatelessWidget {
       builder: (context, state) {
         final cubit = context.read<LedgerCubit>();
         final period = state.maybeWhen(
-          loaded: (_, p, __, ___) => p,
+          loaded: (_, p, _, _) => p,
           orElse: () => cubit.currentPeriod,
         );
 

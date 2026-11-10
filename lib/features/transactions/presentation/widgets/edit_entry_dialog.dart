@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:keel/core/theme/app_colors.dart';
 import 'package:keel/features/accounts/domain/entities/account.dart';
 import 'package:keel/features/contacts/domain/entities/contact.dart';
-import 'package:keel/features/contacts/domain/repositories/contact_repository.dart';
 import 'package:keel/features/ledger/domain/entities/journal_entry.dart';
 import 'package:keel/features/projects/domain/entities/project.dart';
 
@@ -438,7 +437,7 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                 _Label('Project', textSecondary),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _projectId,
+                  initialValue: _projectId,
                   hint: Text('None',
                       style: TextStyle(fontSize: 13, color: textTertiary)),
                   decoration: InputDecoration(
@@ -485,7 +484,7 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                 _Label('Contact', textSecondary),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _contactId,
+                  initialValue: _contactId,
                   hint: Text('None',
                       style: TextStyle(fontSize: 13, color: textTertiary)),
                   decoration: InputDecoration(
@@ -571,7 +570,7 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                           _Label('Fee account', textSecondary),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: _feeAccountId,
+                            initialValue: _feeAccountId,
                             hint: Text('e.g. Bank Charges',
                                 style: TextStyle(
                                     fontSize: 12, color: textTertiary)),
@@ -606,7 +605,7 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                           _Label('Paid from', textSecondary),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: _paidFromAccountId,
+                            initialValue: _paidFromAccountId,
                             hint: Text('Asset account',
                                 style: TextStyle(
                                     fontSize: 12, color: textTertiary)),

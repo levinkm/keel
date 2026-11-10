@@ -63,14 +63,12 @@ class Project {
   bool get isCapital => type == ProjectType.capital;
   bool get isRevenue => type == ProjectType.revenue;
 
-  Duration? get duration =>
-      endDate != null ? endDate!.difference(startDate) : null;
+  Duration? get duration => endDate?.difference(startDate);
 
   int get daysElapsed =>
       DateTime.now().difference(startDate).inDays.clamp(0, 999999);
 
-  int? get daysRemaining =>
-      endDate != null ? endDate!.difference(DateTime.now()).inDays : null;
+  int? get daysRemaining => endDate?.difference(DateTime.now()).inDays;
 
   double? get timeProgressPct {
     if (endDate == null) return null;

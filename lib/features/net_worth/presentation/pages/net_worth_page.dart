@@ -31,277 +31,387 @@ class _NetWorthView extends StatelessWidget {
         return state.when(
           initial: () => const SizedBox.shrink(),
           loading: () => const NetWorthShimmer(),
-          error: (msg) =>
-              Center(child: Text(msg, style: const TextStyle(color: AppColors.error))),
-          loaded: (netWorth, totalAssets, totalLiabilities, liquid,
-              totalCash, totalPhysical, totalInvestments,
-              cashAccounts, physicalAssets, activeHoldings, loanBalances) {
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            final bg = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-            final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-            final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
-            final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-            final textTertiary = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
+          error: (msg) => Center(
+            child: Text(msg, style: const TextStyle(color: AppColors.error)),
+          ),
+          loaded:
+              (
+                netWorth,
+                totalAssets,
+                totalLiabilities,
+                liquid,
+                totalCash,
+                totalPhysical,
+                totalInvestments,
+                cashAccounts,
+                physicalAssets,
+                activeHoldings,
+                loanBalances,
+              ) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final bg = isDark
+                    ? AppColors.darkBackground
+                    : AppColors.lightBackground;
+                final surface = isDark
+                    ? AppColors.darkSurface
+                    : AppColors.lightSurface;
+                final textPrimary = isDark
+                    ? AppColors.darkText
+                    : AppColors.lightText;
+                final textSecondary = isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary;
+                final textTertiary = isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextTertiary;
 
-            final isPositive = netWorth >= 0;
+                final isPositive = netWorth >= 0;
 
-            return Container(
-              color: bg,
-              padding: const EdgeInsets.only(top: kTitleBarHeight),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Header ──────────────────────────────────────────────
-                    Text('Net Worth',
-                        style: TextStyle(
+                return Container(
+                  color: bg,
+                  padding: const EdgeInsets.only(top: kTitleBarHeight),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(28, 28, 28, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Header ──────────────────────────────────────────────
+                        Text(
+                          'Net Worth',
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: textPrimary,
-                            letterSpacing: -0.3)),
-                    const SizedBox(height: 20),
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
 
-                    // ── Headline card ────────────────────────────────────────
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                          color: surface, borderRadius: BorderRadius.circular(14)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Total net worth',
-                              style: TextStyle(fontSize: 12, color: textTertiary)),
-                          const SizedBox(height: 8),
-                          Text(
-                            _fmtFull(netWorth),
-                            style: TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.w700,
-                              color: isPositive ? textPrimary : AppColors.error,
-                              letterSpacing: -1,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
+                        // ── Headline card ────────────────────────────────────────
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: surface,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total net worth',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: textTertiary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _fmtFull(netWorth),
+                                style: TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w700,
+                                  color: isPositive
+                                      ? textPrimary
+                                      : AppColors.error,
+                                  letterSpacing: -1,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              // Assets vs Liabilities bar
+                              if (totalAssets > 0) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Assets ${_fmtShort(totalAssets)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.success,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Liabilities ${_fmtShort(totalLiabilities)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.error,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: totalAssets > 0
+                                        ? (totalAssets /
+                                                  (totalAssets +
+                                                      totalLiabilities))
+                                              .clamp(0.0, 1.0)
+                                        : 0,
+                                    minHeight: 8,
+                                    backgroundColor: AppColors.error.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    valueColor: const AlwaysStoppedAnimation(
+                                      AppColors.success,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+                              // Liquid vs Illiquid
+                              Row(
+                                children: [
+                                  _miniStat(
+                                    'LIQUID',
+                                    _fmtShort(liquid),
+                                    AppColors.success,
+                                    textSecondary,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _miniStat(
+                                    'ILLIQUID',
+                                    _fmtShort(totalAssets - liquid),
+                                    textSecondary,
+                                    textSecondary,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  _miniStat(
+                                    'LIABILITIES',
+                                    _fmtShort(totalLiabilities),
+                                    AppColors.error,
+                                    textSecondary,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // ── Allocation bar ───────────────────────────────────────
+                        if (totalAssets > 0) ...[
+                          _AllocationBar(
+                            cash: totalCash,
+                            physical: totalPhysical,
+                            investments: totalInvestments,
+                            total: totalAssets,
+                            isDark: isDark,
                           ),
                           const SizedBox(height: 16),
-                          // Assets vs Liabilities bar
-                          if (totalAssets > 0) ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Assets ${_fmtShort(totalAssets)}',
-                                    style: TextStyle(fontSize: 11, color: AppColors.success)),
-                                Text('Liabilities ${_fmtShort(totalLiabilities)}',
-                                    style: TextStyle(fontSize: 11, color: AppColors.error)),
-                              ],
+                        ],
+
+                        // ── Three columns ────────────────────────────────────────
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cash & Bank
+                            Expanded(
+                              child: _SectionCard(
+                                title: 'Cash & Bank',
+                                total: totalCash,
+                                color: AppColors.royalBlue,
+                                icon: Icons.account_balance_wallet_outlined,
+                                surface: surface,
+                                textPrimary: textPrimary,
+                                textSecondary: textSecondary,
+                                textTertiary: textTertiary,
+                                isDark: isDark,
+                                emptyText: 'No accounts',
+                                children: cashAccounts
+                                    .take(8)
+                                    .map(
+                                      (a) => _RowItem(
+                                        label: a.account.name,
+                                        value: _fmtShort(a.balanceMinor),
+                                        valueColor: a.balanceMinor < 0
+                                            ? AppColors.error
+                                            : textPrimary,
+                                        dot: _liquidityColor(
+                                          a.account.liquidity,
+                                        ),
+                                        textPrimary: textPrimary,
+                                        textSecondary: textSecondary,
+                                        isDark: isDark,
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
                             ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: totalAssets > 0
-                                    ? (totalAssets / (totalAssets + totalLiabilities))
-                                        .clamp(0.0, 1.0)
-                                    : 0,
-                                minHeight: 8,
-                                backgroundColor: AppColors.error.withValues(alpha: 0.3),
-                                valueColor: const AlwaysStoppedAnimation(AppColors.success),
+                            const SizedBox(width: 12),
+                            // Physical Assets
+                            Expanded(
+                              child: _SectionCard(
+                                title: 'Physical Assets',
+                                total: totalPhysical,
+                                color: AppColors.success,
+                                icon: Icons.home_outlined,
+                                surface: surface,
+                                textPrimary: textPrimary,
+                                textSecondary: textSecondary,
+                                textTertiary: textTertiary,
+                                isDark: isDark,
+                                emptyText: 'No physical assets',
+                                children: physicalAssets
+                                    .take(8)
+                                    .map(
+                                      (a) => _RowItem(
+                                        label: a.name,
+                                        value: _fmtShort(a.bookValue),
+                                        valueColor: textPrimary,
+                                        dot: AppColors.success,
+                                        sub: _classLabel(a.assetClass),
+                                        textPrimary: textPrimary,
+                                        textSecondary: textSecondary,
+                                        isDark: isDark,
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Investments
+                            Expanded(
+                              child: _SectionCard(
+                                title: 'Investments',
+                                total: totalInvestments,
+                                color: AppColors.warning,
+                                icon: Icons.show_chart_outlined,
+                                surface: surface,
+                                textPrimary: textPrimary,
+                                textSecondary: textSecondary,
+                                textTertiary: textTertiary,
+                                isDark: isDark,
+                                emptyText: 'No investments',
+                                children: activeHoldings.take(8).map((h) {
+                                  final gain = h.unrealisedGainMinor;
+                                  return _RowItem(
+                                    label: h.name,
+                                    value: _fmtShort(h.marketValueMinor),
+                                    valueColor: textPrimary,
+                                    dot: AppColors.warning,
+                                    sub:
+                                        '${gain >= 0 ? '+' : ''}${_fmtShort(gain)}',
+                                    subColor: gain >= 0
+                                        ? AppColors.success
+                                        : AppColors.error,
+                                    textPrimary: textPrimary,
+                                    textSecondary: textSecondary,
+                                    isDark: isDark,
+                                  );
+                                }).toList(),
                               ),
                             ),
                           ],
-                          const SizedBox(height: 16),
-                          // Liquid vs Illiquid
-                          Row(children: [
-                            _miniStat('LIQUID', _fmtShort(liquid),
-                                AppColors.success, textSecondary),
-                            const SizedBox(width: 24),
-                            _miniStat('ILLIQUID', _fmtShort(totalAssets - liquid),
-                                textSecondary, textSecondary),
-                            const SizedBox(width: 24),
-                            _miniStat('LIABILITIES', _fmtShort(totalLiabilities),
-                                AppColors.error, textSecondary),
-                          ]),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                        ),
+                        const SizedBox(height: 12),
 
-                    // ── Allocation bar ───────────────────────────────────────
-                    if (totalAssets > 0) ...[
-                      _AllocationBar(
-                        cash: totalCash,
-                        physical: totalPhysical,
-                        investments: totalInvestments,
-                        total: totalAssets,
-                        isDark: isDark,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // ── Three columns ────────────────────────────────────────
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Cash & Bank
-                        Expanded(
-                          child: _SectionCard(
-                            title: 'Cash & Bank',
-                            total: totalCash,
-                            color: AppColors.royalBlue,
-                            icon: Icons.account_balance_wallet_outlined,
+                        // ── Liabilities ──────────────────────────────────────────
+                        if (loanBalances.isNotEmpty)
+                          _SectionCard(
+                            title: 'Loans & Liabilities',
+                            total: loanBalances.fold(
+                              0,
+                              (s, l) => s + l.outstandingMinor,
+                            ),
+                            color: AppColors.error,
+                            icon: Icons.credit_card_outlined,
                             surface: surface,
                             textPrimary: textPrimary,
                             textSecondary: textSecondary,
                             textTertiary: textTertiary,
                             isDark: isDark,
-                            children: cashAccounts.take(8).map((a) => _RowItem(
-                                  label: a.account.name,
-                                  value: _fmtShort(a.balanceMinor),
-                                  valueColor: a.balanceMinor < 0
-                                      ? AppColors.error
-                                      : textPrimary,
-                                  dot: _liquidityColor(a.account.liquidity),
-                                  textPrimary: textPrimary,
-                                  textSecondary: textSecondary,
-                                  isDark: isDark,
-                                )).toList(),
-                            emptyText: 'No accounts',
+                            totalIsNegative: true,
+                            emptyText: '',
+                            children: loanBalances
+                                .map(
+                                  (l) => _RowItem(
+                                    label: l.loan.counterparty,
+                                    value: '−${_fmtShort(l.outstandingMinor)}',
+                                    valueColor: AppColors.error,
+                                    dot: AppColors.error,
+                                    sub: _loanLabel(l.loan),
+                                    textPrimary: textPrimary,
+                                    textSecondary: textSecondary,
+                                    isDark: isDark,
+                                  ),
+                                )
+                                .toList(),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Physical Assets
-                        Expanded(
-                          child: _SectionCard(
-                            title: 'Physical Assets',
-                            total: totalPhysical,
-                            color: AppColors.success,
-                            icon: Icons.home_outlined,
-                            surface: surface,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            textTertiary: textTertiary,
-                            isDark: isDark,
-                            children: physicalAssets.take(8).map((a) => _RowItem(
-                                  label: a.name,
-                                  value: _fmtShort(a.bookValue),
-                                  valueColor: textPrimary,
-                                  dot: AppColors.success,
-                                  sub: _classLabel(a.assetClass),
-                                  textPrimary: textPrimary,
-                                  textSecondary: textSecondary,
-                                  isDark: isDark,
-                                )).toList(),
-                            emptyText: 'No physical assets',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Investments
-                        Expanded(
-                          child: _SectionCard(
-                            title: 'Investments',
-                            total: totalInvestments,
-                            color: AppColors.warning,
-                            icon: Icons.show_chart_outlined,
-                            surface: surface,
-                            textPrimary: textPrimary,
-                            textSecondary: textSecondary,
-                            textTertiary: textTertiary,
-                            isDark: isDark,
-                            children: activeHoldings.take(8).map((h) {
-                              final gain = h.unrealisedGainMinor;
-                              return _RowItem(
-                                label: h.name,
-                                value: _fmtShort(h.marketValueMinor),
-                                valueColor: textPrimary,
-                                dot: AppColors.warning,
-                                sub: '${gain >= 0 ? '+' : ''}${_fmtShort(gain)}',
-                                subColor: gain >= 0 ? AppColors.success : AppColors.error,
-                                textPrimary: textPrimary,
-                                textSecondary: textSecondary,
-                                isDark: isDark,
-                              );
-                            }).toList(),
-                            emptyText: 'No investments',
-                          ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-
-                    // ── Liabilities ──────────────────────────────────────────
-                    if (loanBalances.isNotEmpty)
-                      _SectionCard(
-                        title: 'Loans & Liabilities',
-                        total: loanBalances.fold(0, (s, l) => s + l.outstandingMinor),
-                        color: AppColors.error,
-                        icon: Icons.credit_card_outlined,
-                        surface: surface,
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        textTertiary: textTertiary,
-                        isDark: isDark,
-                        totalIsNegative: true,
-                        children: loanBalances.map((l) => _RowItem(
-                              label: l.loan.counterparty,
-                              value: '−${_fmtShort(l.outstandingMinor)}',
-                              valueColor: AppColors.error,
-                              dot: AppColors.error,
-                              sub: _loanLabel(l.loan),
-                              textPrimary: textPrimary,
-                              textSecondary: textSecondary,
-                              isDark: isDark,
-                            )).toList(),
-                        emptyText: '',
-                      ),
-                  ],
-                ),
-              ),
-            );
-          },
+                  ),
+                );
+              },
         );
       },
     );
   }
 
-  Widget _miniStat(String label, String value, Color valueColor, Color labelColor) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 9, fontWeight: FontWeight.w700,
-                color: labelColor, letterSpacing: 0.6)),
-        const SizedBox(height: 3),
-        Text(value,
-            style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w700,
-                color: valueColor,
-                fontFeatures: const [FontFeature.tabularFigures()])),
-      ]);
+  Widget _miniStat(
+    String label,
+    String value,
+    Color valueColor,
+    Color labelColor,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: labelColor,
+          letterSpacing: 0.6,
+        ),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        value,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: valueColor,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    ],
+  );
 
   Color _liquidityColor(Liquidity l) => switch (l) {
-        Liquidity.instant => AppColors.success,
-        Liquidity.days => AppColors.warning,
-        Liquidity.locked => AppColors.slateBlue,
-      };
+    Liquidity.instant => AppColors.success,
+    Liquidity.days => AppColors.warning,
+    Liquidity.locked => AppColors.slateBlue,
+  };
 
   String _classLabel(AssetClass c) => switch (c) {
-        AssetClass.cashAndBank => 'Cash & Bank',
-        AssetClass.investments => 'Investment',
-        AssetClass.vehicle => 'Vehicle',
-        AssetClass.machinery => 'Machinery',
-        AssetClass.land => 'Land',
-        AssetClass.building => 'Building',
-        AssetClass.receivable => 'Receivable',
-        AssetClass.other => 'Other',
-      };
+    AssetClass.cashAndBank => 'Cash & Bank',
+    AssetClass.investments => 'Investment',
+    AssetClass.vehicle => 'Vehicle',
+    AssetClass.machinery => 'Machinery',
+    AssetClass.land => 'Land',
+    AssetClass.building => 'Building',
+    AssetClass.receivable => 'Receivable',
+    AssetClass.other => 'Other',
+  };
 
   String _loanLabel(Loan l) =>
       '${(l.annualRateBp / 100).toStringAsFixed(1)}% · ${l.termMonths}mo';
 
   static String _fmtFull(int minor) {
     final v = minor / 100;
-    final abs = v.abs().toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    final abs = v
+        .abs()
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]},',
+        );
     return '${v < 0 ? '−' : ''}KES $abs';
   }
 
@@ -320,14 +430,19 @@ class _AllocationBar extends StatelessWidget {
   final int cash, physical, investments, total;
   final bool isDark;
   const _AllocationBar({
-    required this.cash, required this.physical,
-    required this.investments, required this.total, required this.isDark,
+    required this.cash,
+    required this.physical,
+    required this.investments,
+    required this.total,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     final cashPct = total > 0 ? cash / total : 0.0;
     final physPct = total > 0 ? physical / total : 0.0;
@@ -335,55 +450,88 @@ class _AllocationBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Asset allocation',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                  color: textSecondary)),
+          Text(
+            'Asset allocation',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textSecondary,
+            ),
+          ),
           const SizedBox(height: 12),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Row(children: [
-              if (cashPct > 0)
-                Expanded(
-                  flex: (cashPct * 1000).round(),
-                  child: Container(height: 12, color: AppColors.royalBlue),
-                ),
-              if (physPct > 0)
-                Expanded(
-                  flex: (physPct * 1000).round(),
-                  child: Container(height: 12, color: AppColors.success),
-                ),
-              if (invPct > 0)
-                Expanded(
-                  flex: (invPct * 1000).round(),
-                  child: Container(height: 12, color: AppColors.warning),
-                ),
-            ]),
+            child: Row(
+              children: [
+                if (cashPct > 0)
+                  Expanded(
+                    flex: (cashPct * 1000).round(),
+                    child: Container(height: 12, color: AppColors.royalBlue),
+                  ),
+                if (physPct > 0)
+                  Expanded(
+                    flex: (physPct * 1000).round(),
+                    child: Container(height: 12, color: AppColors.success),
+                  ),
+                if (invPct > 0)
+                  Expanded(
+                    flex: (invPct * 1000).round(),
+                    child: Container(height: 12, color: AppColors.warning),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 10),
-          Row(children: [
-            _legend(AppColors.royalBlue, 'Cash & Bank', '${(cashPct * 100).toStringAsFixed(1)}%', textSecondary),
-            const SizedBox(width: 20),
-            _legend(AppColors.success, 'Physical', '${(physPct * 100).toStringAsFixed(1)}%', textSecondary),
-            const SizedBox(width: 20),
-            _legend(AppColors.warning, 'Investments', '${(invPct * 100).toStringAsFixed(1)}%', textSecondary),
-          ]),
+          Row(
+            children: [
+              _legend(
+                AppColors.royalBlue,
+                'Cash & Bank',
+                '${(cashPct * 100).toStringAsFixed(1)}%',
+                textSecondary,
+              ),
+              const SizedBox(width: 20),
+              _legend(
+                AppColors.success,
+                'Physical',
+                '${(physPct * 100).toStringAsFixed(1)}%',
+                textSecondary,
+              ),
+              const SizedBox(width: 20),
+              _legend(
+                AppColors.warning,
+                'Investments',
+                '${(invPct * 100).toStringAsFixed(1)}%',
+                textSecondary,
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _legend(Color color, String label, String pct, Color textColor) =>
-      Row(children: [
-        Container(width: 8, height: 8,
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 6),
-        Text('$label $pct',
-            style: TextStyle(fontSize: 11, color: textColor)),
-      ]);
+  Widget _legend(Color color, String label, String pct, Color textColor) => Row(
+    children: [
+      Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      const SizedBox(width: 6),
+      Text('$label $pct', style: TextStyle(fontSize: 11, color: textColor)),
+    ],
+  );
 }
 
 // ── Section card ──────────────────────────────────────────────────────────────
@@ -409,51 +557,70 @@ class _SectionCard extends StatelessWidget {
     required this.textSecondary,
     required this.textTertiary,
     required this.isDark,
-    required this.children,
     required this.emptyText,
     this.totalIsNegative = false,
+    required this.children,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
                   color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(7)),
-              child: Icon(icon, size: 15, color: color),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(title,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                      color: textSecondary)),
-            ),
-            Text(
-              totalIsNegative ? '−${_fmt(total)}' : _fmt(total),
-              style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(icon, size: 15, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: textSecondary,
+                  ),
+                ),
+              ),
+              Text(
+                totalIsNegative ? '−${_fmt(total)}' : _fmt(total),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: totalIsNegative ? AppColors.error : color,
-                  fontFeatures: const [FontFeature.tabularFigures()]),
-            ),
-          ]),
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
           if (children.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Divider(height: 1,
-                color: (isDark ? AppColors.darkBorder : AppColors.lightBorder)
-                    .withValues(alpha: 0.5)),
+            Divider(
+              height: 1,
+              color: (isDark ? AppColors.darkBorder : AppColors.lightBorder)
+                  .withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 8),
             ...children,
           ] else if (emptyText.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(emptyText, style: TextStyle(fontSize: 12, color: textTertiary)),
+            Text(
+              emptyText,
+              style: TextStyle(fontSize: 12, color: textTertiary),
+            ),
           ],
         ],
       ),
@@ -496,31 +663,46 @@ class _RowItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(children: [
-        Container(width: 6, height: 6,
-            decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: TextStyle(fontSize: 12, color: textPrimary),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (sub != null)
-                Text(sub!,
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: subColor ?? textSecondary)),
-            ],
+      child: Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
           ),
-        ),
-        Text(value,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (sub != null)
+                  Text(
+                    sub!,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: subColor ?? textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            value,
             style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600,
-                color: valueColor,
-                fontFeatures: const [FontFeature.tabularFigures()])),
-      ]),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: valueColor,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

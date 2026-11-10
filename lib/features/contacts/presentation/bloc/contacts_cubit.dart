@@ -6,8 +6,6 @@ import 'package:keel/features/contacts/domain/entities/contact.dart';
 import 'package:keel/features/contacts/domain/repositories/contact_repository.dart';
 import 'package:keel/features/ledger/domain/entities/journal_entry.dart';
 import 'package:keel/features/ledger/domain/repositories/ledger_repository.dart';
-import 'package:uuid/uuid.dart';
-
 part 'contacts_state.dart';
 part 'contacts_cubit.freezed.dart';
 
