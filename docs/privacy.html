@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Keel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #4169E1; --text: #18243A; --text2: #68758B; --text3: #8793A7;
+      --bg: #ffffff; --border: #DFE7F5;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+    a { color: var(--blue); text-decoration: none; }
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 64px; height: 64px;
+      background: rgba(255,255,255,0.94); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo img { width: 28px; height: 28px; border-radius: 7px; }
+    .nav-logo span { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+    .nav-back { font-size: 14px; color: var(--text2); transition: color 0.15s; }
+    .nav-back:hover { color: var(--text); }
+    .page { max-width: 720px; margin: 0 auto; padding: 120px 64px 100px; }
+    .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--blue); margin-bottom: 16px; }
+    h1 { font-size: 40px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 12px; }
+    .updated { font-size: 14px; color: var(--text3); margin-bottom: 56px; }
+    h2 { font-size: 18px; font-weight: 700; margin: 40px 0 12px; }
+    p { font-size: 15px; color: var(--text2); margin-bottom: 16px; }
+    ul { padding-left: 20px; margin-bottom: 16px; }
+    li { font-size: 15px; color: var(--text2); margin-bottom: 8px; }
+    footer { border-top: 1px solid var(--border); padding: 32px 64px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .footer-logo { display: flex; align-items: center; gap: 10px; }
+    .footer-logo img { width: 24px; height: 24px; border-radius: 6px; }
+    .footer-logo span { font-size: 14px; font-weight: 700; }
+    .footer-copy { font-size: 13px; color: var(--text3); }
+    @media (max-width: 700px) {
+      nav { padding: 0 24px; }
+      .page { padding: 100px 24px 80px; }
+      footer { padding: 32px 24px; flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-logo">
+    <img src="https://raw.githubusercontent.com/levinkm/keel/main/assets/png/logos/keel_icon_1024.png" alt="Keel" />
+    <span>Keel</span>
+  </a>
+  <a href="/" class="nav-back">← Back to home</a>
+</nav>
+
+<div class="page">
+  <div class="eyebrow">Legal</div>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: November 2026</p>
+
+  <p>Keel is a desktop-first personal finance application for macOS. This policy explains what data we collect, how we use it, and your rights.</p>
+
+  <h2>Data stored locally</h2>
+  <p>By default, all financial data you enter into Keel — accounts, transactions, investments, loans, assets, income, budgets — is stored exclusively on your device in a local SQLite database. This data never leaves your machine unless you explicitly enable cloud sync.</p>
+
+  <h2>Cloud sync (optional)</h2>
+  <p>If you choose to enable cloud sync by signing in with Google, the following applies:</p>
+  <ul>
+    <li>Your financial data is encrypted in transit and stored in a Supabase (PostgreSQL) database associated with your Google account.</li>
+    <li>Data is scoped to your user ID. No other user can access your data.</li>
+    <li>You can disable sync and delete your remote data at any time from Settings → Cloud Backup.</li>
+  </ul>
+
+  <h2>Google sign-in</h2>
+  <p>When you sign in with Google, we receive your Google account name, email address, and profile photo URL. This information is used solely to identify your sync account and personalise the app interface. We do not share this with any third party.</p>
+
+  <h2>Analytics and tracking</h2>
+  <p>Keel does not include any analytics SDKs, crash reporters, or tracking libraries. We do not collect usage data, telemetry, or behavioural information of any kind.</p>
+
+  <h2>Third-party services</h2>
+  <p>When cloud sync is enabled, data is stored with <a href="https://supabase.com/privacy" target="_blank">Supabase</a>. Authentication is handled by <a href="https://policies.google.com/privacy" target="_blank">Google OAuth</a>. Both services have their own privacy policies.</p>
+
+  <h2>Data deletion</h2>
+  <p>To delete your local data, remove the Keel application and its associated database file. To delete your remote sync data, use Settings → Cloud Backup → Delete Remote Data, or open an issue on GitHub.</p>
+
+  <h2>Children's privacy</h2>
+  <p>Keel is not directed at children under 13. We do not knowingly collect data from children.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>We may update this policy from time to time. The latest version will always be available at this URL.</p>
+
+  <h2>Contact</h2>
+  <p>Questions? Open an issue at <a href="https://github.com/levinkm/keel/issues" target="_blank">github.com/levinkm/keel</a>.</p>
+</div>
+
+<footer>
+  <div class="footer-logo">
+    <img src="https://raw.githubusercontent.com/levinkm/keel/main/assets/png/logos/keel_icon_1024.png" alt="Keel" />
+    <span>Keel</span>
+  </div>
+  <div class="footer-copy">© 2026 Keel. MIT License.</div>
+</footer>
+</body>
+</html>
