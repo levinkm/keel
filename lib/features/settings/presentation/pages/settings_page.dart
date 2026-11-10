@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/di/injector.dart';
 import 'package:keel/core/shortcuts/shortcut_service.dart';
+import 'package:keel/core/sync/sync_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
 import 'package:keel/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:keel/core/widgets/page_shell.dart';
@@ -519,6 +520,19 @@ class _DataSection extends StatelessWidget {
       ]),
       const SizedBox(height: 20),
 
+      // Cloud Backup
+      _sectionLabel('CLOUD BACKUP', textTertiary),
+      const SizedBox(height: 10),
+      _CloudBackupCard(
+        isDark: isDark,
+        surface: surface,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        textTertiary: textTertiary,
+        divider: divider,
+      ),
+      const SizedBox(height: 20),
+
       // Privacy notice
       Container(
         padding: const EdgeInsets.all(14),
@@ -619,7 +633,199 @@ class _DataSection extends StatelessWidget {
   }
 }
 
-// ── Keyboard shortcuts section ──────────────────────────────────────────────────────────────────────────────────
+// ── Cloud Backup card ────────────────────────────────────────────────────────
+
+class _CloudBackupCard extends StatefulWidget {
+  final bool isDark;
+  final Color surface, textPrimary, textSecondary, textTertiary, divider;
+  const _CloudBackupCard({
+    required this.isDark,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textTertiary,
+    required this.divider,
+  });
+  @override
+  State<_CloudBackupCard> createState() => _CloudBackupCardState();
+}
+
+class _CloudBackupCardState extends State<_CloudBackupCard> {
+  String? _message;
+  bool _isError = false;
+
+  Future<void> _backup() async {
+    setState(() { _message = null; _isError = false; });
+    try {
+      await SyncService.instance.backup();
+      setState(() => _message = 'Backup complete.');
+    } catch (e) {
+      setState(() { _message = 'Backup failed: $e'; _isError = true; });
+    }
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final isDark = widget.isDark;
+    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: SizedBox(
+          width: 400,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Restore from cloud?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                        color: textPrimary)),
+                const SizedBox(height: 8),
+                Text(
+                  'This will replace all local data with your cloud backup. '
+                  'This cannot be undone.',
+                  style: TextStyle(fontSize: 13, color: textSecondary, height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx, false),
+                    child: Text('Cancel', style: TextStyle(color: textSecondary)),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogCtx, true),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                        foregroundColor: Colors.white),
+                    child: const Text('Restore'),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    setState(() { _message = null; _isError = false; });
+    try {
+      await SyncService.instance.restore();
+      setState(() => _message = 'Restore complete. Restart the app to see your data.');
+    } catch (e) {
+      setState(() { _message = 'Restore failed: $e'; _isError = true; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: SyncService.instance.isEnabled,
+      builder: (_, enabled, _) {
+        return ValueListenableBuilder<SyncStatus>(
+          valueListenable: SyncService.instance.syncStatus,
+          builder: (_, status, _) {
+            final isSyncing = status == SyncStatus.syncing;
+            return ValueListenableBuilder<DateTime?>(
+              valueListenable: SyncService.instance.lastSyncAt,
+              builder: (_, lastSync, _) {
+                return _card(widget.surface, [
+                  // Enable toggle
+                  _row(
+                    label: 'Enable cloud backup',
+                    sub: 'Securely back up your data to Supabase. '
+                        'Nothing is sent unless you enable this.',
+                    trailing: CupertinoSwitch(
+                      value: enabled,
+                      activeTrackColor: AppColors.royalBlue,
+                      onChanged: (v) => SyncService.instance.setEnabled(v),
+                    ),
+                    textPrimary: widget.textPrimary,
+                    textSecondary: widget.textSecondary,
+                    divider: widget.divider,
+                    isLast: !enabled,
+                  ),
+                  if (enabled) ...[
+                    // Last synced
+                    _row(
+                      label: 'Last backup',
+                      sub: lastSync != null
+                          ? _fmtDateTime(lastSync)
+                          : 'Never backed up',
+                      trailing: isSyncing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.royalBlue,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                      textPrimary: widget.textPrimary,
+                      textSecondary: widget.textSecondary,
+                      divider: widget.divider,
+                      isLast: false,
+                    ),
+                    // Backup now
+                    _actionRow(
+                      icon: Icons.cloud_upload_outlined,
+                      label: 'Back up now',
+                      sub: 'Push all local data to Supabase',
+                      color: AppColors.royalBlue,
+                      textPrimary: widget.textPrimary,
+                      textSecondary: widget.textSecondary,
+                      onTap: isSyncing ? () {} : _backup,
+                    ),
+                    // Restore
+                    _actionRow(
+                      icon: Icons.cloud_download_outlined,
+                      label: 'Restore from cloud',
+                      sub: 'Replace local data with your cloud backup',
+                      color: AppColors.warning,
+                      textPrimary: widget.textPrimary,
+                      textSecondary: widget.textSecondary,
+                      onTap: isSyncing ? () {} : () => _restore(context),
+                    ),
+                    // Status message
+                    if (_message != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Text(
+                          _message!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _isError ? AppColors.error : AppColors.success,
+                          ),
+                        ),
+                      ),
+                  ],
+                ]);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _fmtDateTime(DateTime dt) {
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${dt.day} ${months[dt.month]} ${dt.year}, '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ── Keyboard shortcuts section ────────────────────────────────────────────────────────────────────────────────────
 
 class _ShortcutsSection extends StatefulWidget {
   final bool isDark;

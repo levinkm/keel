@@ -10,6 +10,7 @@ import 'core/di/dependency_injection.dart';
 import 'core/router/app_router.dart';
 import 'core/shortcuts/shortcut_service.dart';
 import 'core/splash/splash_screen.dart';
+import 'core/sync/sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
 import 'features/settings/presentation/bloc/settings_cubit.dart';
@@ -19,6 +20,7 @@ void main() async {
   await initDependencies();
   await ShortcutService.instance.init(getIt<SettingsRepository>());
   await AuthService.instance.init();
+  await SyncService.instance.init();
   runApp(const KeelApp());
 }
 
