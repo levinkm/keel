@@ -7,6 +7,7 @@ import 'package:keel/features/assets/domain/entities/asset.dart';
 import 'package:keel/features/loans/domain/entities/loan.dart';
 import 'package:keel/features/net_worth/presentation/bloc/net_worth_cubit.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class NetWorthPage extends StatelessWidget {
@@ -106,8 +107,8 @@ class _NetWorthView extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                _fmtFull(netWorth),
+                              BlurredAmount(
+                                text: _fmtFull(netWorth),
                                 style: TextStyle(
                                   fontSize: 36,
                                   fontWeight: FontWeight.w700,
@@ -595,8 +596,8 @@ class _SectionCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                totalIsNegative ? '−${_fmt(total)}' : _fmt(total),
+              BlurredAmount(
+                text: totalIsNegative ? '−${_fmt(total)}' : _fmt(total),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -692,8 +693,8 @@ class _RowItem extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            value,
+          BlurredAmount(
+            text: value,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,

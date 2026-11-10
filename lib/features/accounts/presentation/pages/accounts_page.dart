@@ -9,6 +9,7 @@ import 'package:keel/features/accounts/presentation/widgets/account_detail_panel
 import 'package:keel/features/accounts/presentation/widgets/account_list_tile.dart';
 import 'package:keel/features/accounts/presentation/widgets/create_account_dialog.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class AccountsPage extends StatelessWidget {
@@ -336,7 +337,8 @@ class _StatCard extends StatelessWidget {
                     letterSpacing: 0.4,
                     color: textSecondary)),
             const SizedBox(height: 6),
-            Text(value,
+            BlurredAmount(
+                text: value,
                 style: TextStyle(
                   fontSize: large ? 20 : 17,
                   fontWeight: FontWeight.w700,

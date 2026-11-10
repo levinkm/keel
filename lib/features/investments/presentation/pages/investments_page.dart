@@ -10,6 +10,7 @@ import 'package:keel/features/investments/presentation/bloc/investments_cubit.da
 import 'package:keel/features/investments/presentation/widgets/holding_detail_panel.dart';
 import 'package:keel/features/investments/presentation/widgets/holding_dialog.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class InvestmentsPage extends StatelessWidget {
@@ -508,7 +509,8 @@ class _StatCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
-                Text(value,
+                BlurredAmount(
+                    text: value,
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
                         color: color,
                         fontFeatures: const [FontFeature.tabularFigures()]),

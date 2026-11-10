@@ -9,6 +9,7 @@ import 'package:keel/features/loans/presentation/widgets/loan_detail_panel.dart'
 import 'package:keel/features/loans/presentation/widgets/loan_dialog.dart';
 import 'package:keel/features/loans/presentation/widgets/loan_list_tile.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class LoansPage extends StatelessWidget {
@@ -353,7 +354,8 @@ class _StatCard extends StatelessWidget {
                         letterSpacing: 0.4,
                         color: textSecondary)),
                 const SizedBox(height: 4),
-                Text(value,
+                BlurredAmount(
+                    text: value,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

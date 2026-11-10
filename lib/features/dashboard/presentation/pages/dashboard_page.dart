@@ -10,6 +10,7 @@ import 'package:keel/features/dashboard/presentation/widgets/budget_status_card.
 import 'package:keel/features/dashboard/presentation/widgets/recent_transactions_card.dart';
 import 'package:keel/core/widgets/page_shell.dart';
 import 'package:keel/core/widgets/shimmer.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -313,8 +314,8 @@ class _HeroCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  _fmtHero(data.netWorthMinor),
+                BlurredAmount(
+                  text: _fmtHero(data.netWorthMinor),
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w700,
@@ -483,8 +484,8 @@ class _HeroStat extends StatelessWidget {
         style: TextStyle(fontSize: 10, color: labelColor, letterSpacing: 0.3),
       ),
       const SizedBox(height: 2),
-      Text(
-        value,
+      BlurredAmount(
+        text: value,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -565,8 +566,8 @@ class _MetricCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text(
-              value,
+            BlurredAmount(
+              text: value,
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,

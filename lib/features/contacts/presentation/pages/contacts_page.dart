@@ -9,6 +9,7 @@ import 'package:keel/features/contacts/presentation/widgets/contact_detail_panel
 import 'package:keel/features/contacts/presentation/widgets/contact_dialog.dart';
 import 'package:keel/features/contacts/presentation/widgets/contact_list_tile.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class ContactsPage extends StatelessWidget {
@@ -318,7 +319,8 @@ class _StatCard extends StatelessWidget {
                         letterSpacing: 0.4,
                         color: textSecondary)),
                 const SizedBox(height: 4),
-                Text(value,
+                BlurredAmount(
+                    text: value,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

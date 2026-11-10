@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/shortcuts/shortcut_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
 
@@ -60,6 +61,9 @@ class ShellScaffold extends StatelessWidget {
       'go_reports':       () => goTo('/reports'),
       'go_projections':   () => goTo('/projections'),
       'go_settings':      () => goTo('/settings'),
+      'toggle_privacy':   () => AuthService.instance.setPrivacyMode(
+            !AuthService.instance.privacyMode.value),
+      'lock_app':         () => AuthService.instance.lock(),
     };
 
     return Scaffold(
@@ -143,7 +147,7 @@ class _FloatingDock extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 4),
               child: Image.asset(
                 'assets/png/logos/keel_icon_1024.png',
                 width: 28,
@@ -151,7 +155,53 @@ class _FloatingDock extends StatelessWidget {
                 filterQuality: FilterQuality.high,
               ),
             ),
-            const SizedBox(height: 4),
+            // Privacy + lock — inline with logo row
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ValueListenableBuilder<bool>(
+                  valueListenable: AuthService.instance.privacyMode,
+                  builder: (_, privacy, _) => _UtilityButton(
+                    icon: privacy
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    tooltip: privacy
+                        ? 'Disable privacy mode (⌘⇧P)'
+                        : 'Enable privacy mode (⌘⇧P)',
+                    color: privacy
+                        ? AppColors.royalBlue
+                        : (isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.lightTextTertiary),
+                    isDark: isDark,
+                    size: 14,
+                    onTap: () =>
+                        AuthService.instance.setPrivacyMode(!privacy),
+                  ),
+                ),
+                ValueListenableBuilder<bool>(
+                  valueListenable: AuthService.instance.biometricEnabled,
+                  builder: (_, enabled, _) => enabled
+                      ? _UtilityButton(
+                          icon: Icons.lock_outline,
+                          tooltip: 'Lock Keel (⌘⇧L)',
+                          color: isDark
+                              ? AppColors.darkTextTertiary
+                              : AppColors.lightTextTertiary,
+                          isDark: isDark,
+                          size: 14,
+                          onTap: () => AuthService.instance.lock(),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+            Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+            const SizedBox(height: 2),
             ...List.generate(items.length, (i) {
               final isSeparatorBefore = i == items.length - 1;
               return Column(
@@ -257,6 +307,64 @@ class _DockItemState extends State<_DockItem> {
                   ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UtilityButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final bool isDark;
+  final double size;
+  final VoidCallback onTap;
+
+  const _UtilityButton({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.isDark,
+    this.size = 18,
+    required this.onTap,
+  });
+
+  @override
+  State<_UtilityButton> createState() => _UtilityButtonState();
+}
+
+class _UtilityButtonState extends State<_UtilityButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      preferBelow: false,
+      waitDuration: const Duration(milliseconds: 300),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 22,
+            height: 22,
+            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? (widget.isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.04))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(widget.icon, size: widget.size, color: widget.color),
           ),
         ),
       ),

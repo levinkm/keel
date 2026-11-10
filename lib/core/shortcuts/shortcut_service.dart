@@ -158,8 +158,10 @@ class ShortcutService {
     ShortcutDef.defaults(id: 'go_budget',        label: 'Budget',          group: 'Quick Jump', defaultKey: 'meta+b'),
     ShortcutDef.defaults(id: 'go_loans',         label: 'Loans',           group: 'Quick Jump', defaultKey: 'meta+l'),
     ShortcutDef.defaults(id: 'go_reports',       label: 'Reports',         group: 'Quick Jump', defaultKey: 'meta+shift+r'),
-    ShortcutDef.defaults(id: 'go_projections',   label: 'Projections',     group: 'Quick Jump', defaultKey: 'meta+shift+p'),
+    ShortcutDef.defaults(id: 'go_projections',   label: 'Projections',     group: 'Quick Jump', defaultKey: 'meta+shift+j'),
     ShortcutDef.defaults(id: 'go_settings',      label: 'Settings',        group: 'Quick Jump', defaultKey: 'meta+,'),
+    ShortcutDef.defaults(id: 'toggle_privacy',   label: 'Toggle privacy mode', group: 'Privacy & Security', defaultKey: 'meta+shift+p'),
+    ShortcutDef.defaults(id: 'lock_app',         label: 'Lock Keel',       group: 'Privacy & Security', defaultKey: 'meta+shift+l'),
   ];
 
   Future<void> init(SettingsRepository repo) async {

@@ -9,6 +9,7 @@ import 'package:keel/features/income/presentation/widgets/income_detail_panel.da
 import 'package:keel/features/income/presentation/widgets/income_stream_dialog.dart';
 import 'package:keel/features/income/presentation/widgets/income_stream_tile.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class IncomePage extends StatelessWidget {
@@ -338,7 +339,8 @@ class _StatCard extends StatelessWidget {
                     letterSpacing: 0.4,
                     color: textSecondary)),
             const SizedBox(height: 6),
-            Text(value,
+            BlurredAmount(
+                text: value,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,

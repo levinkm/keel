@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/di/injector.dart';
 import 'package:keel/core/shortcuts/shortcut_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
@@ -9,7 +10,7 @@ import 'package:keel/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:keel/core/widgets/page_shell.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
-enum _Section { profile, appearance, data, shortcuts, about }
+enum _Section { profile, appearance, security, data, shortcuts, about }
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -100,6 +101,9 @@ class _SettingsPageState extends State<SettingsPage> {
       _Section.appearance => _AppearanceSection(settings: settings, cubit: cubit,
           isDark: isDark, surface: surface, textPrimary: textPrimary,
           textSecondary: textSecondary, textTertiary: textTertiary, divider: divider),
+      _Section.security => _SecuritySection(
+          isDark: isDark, surface: surface, textPrimary: textPrimary,
+          textSecondary: textSecondary, textTertiary: textTertiary, divider: divider),
       _Section.data => _DataSection(stats: stats, cubit: cubit,
           isDark: isDark, surface: surface, textPrimary: textPrimary,
           textSecondary: textSecondary, textTertiary: textTertiary, divider: divider),
@@ -115,6 +119,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _label(_Section s) => switch (s) {
         _Section.profile => 'Profile',
         _Section.appearance => 'Appearance',
+        _Section.security => 'Security & Privacy',
         _Section.data => 'Data & Storage',
         _Section.shortcuts => 'Keyboard Shortcuts',
         _Section.about => 'About',
@@ -123,6 +128,7 @@ class _SettingsPageState extends State<SettingsPage> {
   IconData _icon(_Section s) => switch (s) {
         _Section.profile => Icons.person_outline,
         _Section.appearance => Icons.palette_outlined,
+        _Section.security => Icons.shield_outlined,
         _Section.data => Icons.storage_outlined,
         _Section.shortcuts => Icons.keyboard_outlined,
         _Section.about => Icons.info_outline,
@@ -340,6 +346,114 @@ class _ThemeCard extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+// ── Security & Privacy section ───────────────────────────────────────────────
+
+class _SecuritySection extends StatefulWidget {
+  final bool isDark;
+  final Color surface, textPrimary, textSecondary, textTertiary, divider;
+  const _SecuritySection({required this.isDark, required this.surface,
+      required this.textPrimary, required this.textSecondary,
+      required this.textTertiary, required this.divider});
+  @override
+  State<_SecuritySection> createState() => _SecuritySectionState();
+}
+
+class _SecuritySectionState extends State<_SecuritySection> {
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService.instance.isBiometricAvailable().then(
+      (v) => setState(() => _biometricAvailable = v),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _header('Security & Privacy', widget.textPrimary),
+      const SizedBox(height: 20),
+
+      _sectionLabel('AUTHENTICATION', widget.textTertiary),
+      const SizedBox(height: 10),
+      _card(widget.surface, [
+        _row(
+          label: 'Require Touch ID on launch',
+          sub: _biometricAvailable
+              ? 'Lock Keel when the app is hidden or the window loses focus'
+              : 'Touch ID is not available on this device',
+          trailing: ValueListenableBuilder<bool>(
+            valueListenable: AuthService.instance.biometricEnabled,
+            builder: (_, enabled, _) => CupertinoSwitch(
+              value: enabled,
+              activeTrackColor: AppColors.royalBlue,
+              onChanged: _biometricAvailable
+                  ? (v) async {
+                      if (v) {
+                        // Verify once before enabling
+                        final ok = await AuthService.instance.authenticate(
+                          reason: 'Confirm your identity to enable Touch ID lock',
+                        );
+                        if (ok) await AuthService.instance.setBiometricEnabled(true);
+                      } else {
+                        await AuthService.instance.setBiometricEnabled(false);
+                      }
+                    }
+                  : null,
+            ),
+          ),
+          textPrimary: widget.textPrimary,
+          textSecondary: widget.textSecondary,
+          divider: widget.divider,
+          isLast: true,
+        ),
+      ]),
+      const SizedBox(height: 20),
+
+      _sectionLabel('PRIVACY', widget.textTertiary),
+      const SizedBox(height: 10),
+      _card(widget.surface, [
+        _row(
+          label: 'Privacy mode',
+          sub: 'Blur all monetary values. Hover over any amount to reveal it.',
+          trailing: ValueListenableBuilder<bool>(
+            valueListenable: AuthService.instance.privacyMode,
+            builder: (_, enabled, _) => CupertinoSwitch(
+              value: enabled,
+              activeTrackColor: AppColors.royalBlue,
+              onChanged: (v) => AuthService.instance.setPrivacyMode(v),
+            ),
+          ),
+          textPrimary: widget.textPrimary,
+          textSecondary: widget.textSecondary,
+          divider: widget.divider,
+          isLast: true,
+        ),
+      ]),
+      const SizedBox(height: 20),
+
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: widget.isDark ? AppColors.infoSurfaceDark : AppColors.infoSurface,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.info_outline, size: 14, color: AppColors.royalBlue),
+          const SizedBox(width: 10),
+          Expanded(child: Text(
+            'Privacy mode blurs amounts across all pages. '
+            'Hover over any value to temporarily reveal it. '
+            'Touch ID lock re-engages automatically when Keel is hidden.',
+            style: TextStyle(fontSize: 11, color: widget.textSecondary, height: 1.5),
+          )),
+        ]),
+      ),
+    ]);
   }
 }
 

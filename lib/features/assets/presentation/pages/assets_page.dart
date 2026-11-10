@@ -8,6 +8,7 @@ import 'package:keel/features/assets/presentation/bloc/assets_cubit.dart';
 import 'package:keel/features/assets/presentation/widgets/asset_detail_panel.dart';
 import 'package:keel/features/assets/presentation/widgets/asset_dialog.dart';
 import 'package:keel/core/widgets/page_shell.dart';
+import 'package:keel/core/widgets/blurred_amount.dart';
 import 'package:keel/core/widgets/shimmer.dart';
 
 class AssetsPage extends StatelessWidget {
@@ -472,7 +473,8 @@ class _StatCard extends StatelessWidget {
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
                         letterSpacing: 0.4, color: textSecondary)),
                 const SizedBox(height: 4),
-                Text(value,
+                BlurredAmount(
+                    text: value,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color)),
               ],
             ),

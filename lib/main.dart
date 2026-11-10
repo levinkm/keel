@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:keel/core/auth/auth_service.dart';
+import 'package:keel/core/auth/lock_screen.dart';
 import 'package:keel/core/di/injector.dart';
 
 import 'core/di/dependency_injection.dart';
@@ -16,6 +18,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initDependencies();
   await ShortcutService.instance.init(getIt<SettingsRepository>());
+  await AuthService.instance.init();
   runApp(const KeelApp());
 }
 
@@ -26,8 +29,28 @@ class KeelApp extends StatefulWidget {
   State<KeelApp> createState() => _KeelAppState();
 }
 
-class _KeelAppState extends State<KeelApp> {
+class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
   bool _showSplash = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      AuthService.instance.lock();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +64,21 @@ class _KeelAppState extends State<KeelApp> {
         themeMode: mode,
         home: _showSplash
             ? SplashScreen(
-                onComplete: () => setState(() => _showSplash = false),
+                onComplete: () {
+                  setState(() => _showSplash = false);
+                  // Trigger auth immediately after splash if locked
+                  if (AuthService.instance.isLocked.value) {
+                    AuthService.instance.authenticate(
+                      reason: 'Unlock Keel to access your financial data',
+                    );
+                  }
+                },
               )
-            : _RouterApp(mode: mode),
+            : ValueListenableBuilder<bool>(
+                valueListenable: AuthService.instance.isLocked,
+                builder: (_, locked, _) =>
+                    locked ? const LockScreen() : _RouterApp(mode: mode),
+              ),
       ),
     );
   }
