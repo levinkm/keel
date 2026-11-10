@@ -11,8 +11,8 @@
 
     :root {
       --blue:       #4169E1;
-      --blue-light: #EEF2FF;
-      --blue-mid:   #C7D2FE;
+      --blue-light: #E8EDFC;
+      --blue-mid:   #8099D5;
       --text:       #18243A;
       --text2:      #68758B;
       --text3:      #8793A7;
@@ -52,6 +52,7 @@
       padding: 9px 22px; border-radius: 8px;
       font-size: 14px; font-weight: 600;
       transition: background 0.15s;
+      isolation: isolate;
     }
     .nav-cta:hover { background: #365CC5; }
 
@@ -99,6 +100,11 @@
     .hero-screenshot {
       width: 100%; border-radius: 14px; display: block;
       box-shadow: 0 32px 80px rgba(65,105,225,0.14), 0 8px 24px rgba(0,0,0,0.07);
+      animation: heroFloat 6s ease-in-out infinite;
+    }
+    @keyframes heroFloat {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-12px); }
     }
 
     /* ── Screenshot strip ── */
@@ -111,12 +117,19 @@
     .strip-track {
       display: flex; gap: 20px; padding: 0 64px;
       overflow-x: auto; scrollbar-width: none;
+      cursor: grab;
     }
+    .strip-track:active { cursor: grabbing; }
     .strip-track::-webkit-scrollbar { display: none; }
     .strip-item {
       flex-shrink: 0; width: 700px; border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 12px 40px rgba(0,0,0,0.09);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .strip-item:hover {
+      transform: translateY(-6px) scale(1.01);
+      box-shadow: 0 24px 60px rgba(65,105,225,0.18);
     }
     .strip-item img { width: 100%; display: block; }
 
@@ -148,10 +161,24 @@
       display: flex; align-items: center; justify-content: center;
       margin-bottom: 16px;
       color: #4169E1;
+      transition: background 0.2s, transform 0.2s;
     }
-    .feature-icon svg { width: 20px; height: 20px; stroke: #4169E1; }
+    .features-grid > div:hover .feature-icon {
+      background: #4169E1;
+      transform: scale(1.1);
+    }
+    .feature-icon svg { width: 20px; height: 20px; stroke: #4169E1; transition: stroke 0.2s; }
+    .features-grid > div:hover .feature-icon svg { stroke: #fff; }
     .feature-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
     .feature-desc { font-size: 14px; color: var(--text2); line-height: 1.65; }
+
+    /* ── Reveal ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
 
     /* ── Principles ── */
     .principles { background: #4169E1; padding: 100px 64px; }
@@ -242,7 +269,7 @@
     <div class="hero-eyebrow">macOS Desktop App</div>
     <h1>Your finances,<br>clearly.</h1>
     <p class="hero-sub">
-      Accounts, investments, loans, assets, income, budgets and net worth —
+      Accounts, investments, loans, assets, income, budgets and net worth
       all in one native macOS app. Your data stays on your machine.
     </p>
     <div class="hero-actions">
@@ -410,6 +437,40 @@
   <div class="footer-copy">© 2026 Keel. MIT License.</div>
 </footer>
 
-<script>lucide.createIcons();</script>
+<script>
+  lucide.createIcons();
+
+  // ── Section reveals ──
+  const revealEls = document.querySelectorAll(
+    '.features-grid > div, .principle-num, .roadmap-card, .cta h2, .cta p'
+  );
+  revealEls.forEach(el => el.classList.add('reveal'));
+  const revealObs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); revealObs.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  revealEls.forEach(el => revealObs.observe(el));
+
+  // ── Strip auto-scroll (pauses on hover / drag) ──
+  const track = document.querySelector('.strip-track');
+  let paused = false, rafId, pos = 0;
+  function autoScroll() {
+    if (!paused) {
+      pos += 0.6;
+      if (pos >= track.scrollWidth / 2) pos = 0;
+      track.scrollLeft = pos;
+    }
+    rafId = requestAnimationFrame(autoScroll);
+  }
+  track.addEventListener('mouseenter', () => paused = true);
+  track.addEventListener('mouseleave', () => { paused = false; pos = track.scrollLeft; });
+  // drag-to-scroll
+  let isDragging = false, dragStart = 0, scrollStart = 0;
+  track.addEventListener('mousedown', e => { isDragging = true; paused = true; dragStart = e.pageX; scrollStart = track.scrollLeft; });
+  window.addEventListener('mouseup', () => { isDragging = false; });
+  track.addEventListener('mousemove', e => { if (!isDragging) return; track.scrollLeft = scrollStart - (e.pageX - dragStart); pos = track.scrollLeft; });
+  // duplicate items for seamless loop
+  track.innerHTML += track.innerHTML;
+  autoScroll();
+</script>
 </body>
 </html>
