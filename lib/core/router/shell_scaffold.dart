@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/shortcuts/shortcut_service.dart';
+import 'package:keel/core/sync/sync_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
 
 class _NavItem {
@@ -155,10 +156,24 @@ class _FloatingDock extends StatelessWidget {
                 filterQuality: FilterQuality.high,
               ),
             ),
-            // Privacy + lock — inline with logo row
+            // Privacy + lock + sync indicator
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Sync status dot
+                ValueListenableBuilder<SyncStatus>(
+                  valueListenable: SyncService.instance.syncStatus,
+                  builder: (_, status, _) {
+                    if (status == SyncStatus.disabled ||
+                        status == SyncStatus.idle) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 2),
+                      child: _SyncDot(status: status, isDark: isDark),
+                    );
+                  },
+                ),
                 ValueListenableBuilder<bool>(
                   valueListenable: AuthService.instance.privacyMode,
                   builder: (_, privacy, _) => _UtilityButton(
@@ -366,6 +381,73 @@ class _UtilityButtonState extends State<_UtilityButton> {
             ),
             child: Icon(widget.icon, size: widget.size, color: widget.color),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SyncDot extends StatefulWidget {
+  final SyncStatus status;
+  final bool isDark;
+  const _SyncDot({required this.status, required this.isDark});
+
+  @override
+  State<_SyncDot> createState() => _SyncDotState();
+}
+
+class _SyncDotState extends State<_SyncDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    if (widget.status == SyncStatus.syncing) _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_SyncDot old) {
+    super.didUpdateWidget(old);
+    if (widget.status == SyncStatus.syncing) {
+      _ctrl.repeat(reverse: true);
+    } else {
+      _ctrl.stop();
+      _ctrl.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (widget.status) {
+      SyncStatus.syncing => AppColors.royalBlue,
+      SyncStatus.success => AppColors.success,
+      SyncStatus.error => AppColors.error,
+      _ => AppColors.slateBlue,
+    };
+
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, _) => Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          color: color.withValues(
+            alpha: widget.status == SyncStatus.syncing
+                ? 0.4 + (_ctrl.value * 0.6)
+                : 1.0,
+          ),
+          shape: BoxShape.circle,
         ),
       ),
     );

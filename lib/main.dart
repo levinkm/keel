@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/auth/lock_screen.dart';
 import 'package:keel/core/di/injector.dart';
@@ -10,15 +11,18 @@ import 'core/di/dependency_injection.dart';
 import 'core/router/app_router.dart';
 import 'core/shortcuts/shortcut_service.dart';
 import 'core/splash/splash_screen.dart';
+import 'core/sync/sync_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
 import 'features/settings/presentation/bloc/settings_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   await initDependencies();
   await ShortcutService.instance.init(getIt<SettingsRepository>());
   await AuthService.instance.init();
+  await SyncService.instance.init();
   runApp(const KeelApp());
 }
 
@@ -31,6 +35,11 @@ class KeelApp extends StatefulWidget {
 
 class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
   bool _showSplash = true;
+  DateTime? _lastForegroundSync;
+  DateTime? _backgroundedAt;
+
+  // Lock only after being away for more than 5 minutes
+  static const _lockAfter = Duration(minutes: 5);
 
   @override
   void initState() {
@@ -40,6 +49,7 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    SyncService.instance.stopAutoSync();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -48,7 +58,25 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused) {
-      AuthService.instance.lock();
+      // Record when we went to background — don't lock yet
+      _backgroundedAt = DateTime.now();
+    }
+    if (state == AppLifecycleState.resumed) {
+      // Lock only if we were away long enough
+      final backgrounded = _backgroundedAt;
+      if (backgrounded != null &&
+          DateTime.now().difference(backgrounded) >= _lockAfter) {
+        AuthService.instance.lock();
+      }
+      _backgroundedAt = null;
+
+      // Sync on foreground if last sync was > 60 seconds ago
+      final now = DateTime.now();
+      final lastSync = _lastForegroundSync;
+      if (lastSync == null || now.difference(lastSync).inSeconds > 60) {
+        _lastForegroundSync = now;
+        SyncService.instance.sync(silent: true);
+      }
     }
   }
 
@@ -66,12 +94,17 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
             ? SplashScreen(
                 onComplete: () {
                   setState(() => _showSplash = false);
-                  // Trigger auth immediately after splash if locked
                   if (AuthService.instance.isLocked.value) {
                     AuthService.instance.authenticate(
                       reason: 'Unlock Keel to access your financial data',
                     );
                   }
+                  // Start background sync timer after splash
+                  SyncService.instance.getSyncIntervalMinutes().then(
+                    (mins) => SyncService.instance.startAutoSync(
+                      intervalMinutes: mins,
+                    ),
+                  );
                 },
               )
             : ValueListenableBuilder<bool>(

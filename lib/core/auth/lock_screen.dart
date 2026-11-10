@@ -1,5 +1,9 @@
+import 'dart:math';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:keel/core/auth/auth_service.dart';
+import 'package:keel/core/sync/sync_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
 
 class LockScreen extends StatefulWidget {
@@ -10,142 +14,157 @@ class LockScreen extends StatefulWidget {
 }
 
 class _LockScreenState extends State<LockScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _authenticating = false;
   bool _failed = false;
-  late final AnimationController _pulse;
+
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _rotateCtrl;
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeIn;
 
   @override
   void initState() {
     super.initState();
-    _pulse = AnimationController(
+
+    _pulseCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1000),
     );
+    _rotateCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat();
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeIn = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _fadeCtrl.forward();
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _authenticate());
   }
 
   @override
   void dispose() {
-    _pulse.dispose();
+    _pulseCtrl.dispose();
+    _rotateCtrl.dispose();
+    _fadeCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _authenticate() async {
-    setState(() {
-      _authenticating = true;
-      _failed = false;
-    });
-    _pulse.repeat(reverse: true);
+    setState(() { _authenticating = true; _failed = false; });
+    _pulseCtrl.repeat(reverse: true);
 
     final success = await AuthService.instance.authenticate(
       reason: 'Unlock Keel to access your financial data',
     );
 
     if (!mounted) return;
-    _pulse.stop();
-    _pulse.reset();
+    _pulseCtrl.stop();
+    _pulseCtrl.reset();
 
     if (!success) {
-      setState(() {
-        _authenticating = false;
-        _failed = true;
-      });
+      setState(() { _authenticating = false; _failed = true; });
     }
+  }
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    final name = SyncService.instance.googleDisplayName?.split(' ').first;
+    final suffix = name != null && name.isNotEmpty ? ', $name' : '';
+    if (h < 12) return 'Good morning$suffix';
+    if (h < 17) return 'Good afternoon$suffix';
+    return 'Good evening$suffix';
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final size = MediaQuery.sizeOf(context);
 
     return Scaffold(
-      backgroundColor: bg,
-      body: Center(
-        child: SizedBox(
-          width: 320,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // App icon
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.royalBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.asset(
-                    'assets/png/logos/keel_icon_1024.png',
-                    filterQuality: FilterQuality.high,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Keel is locked',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: textPrimary,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Use Touch ID or your password to unlock.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: textSecondary),
-              ),
-              const SizedBox(height: 28),
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Background ──────────────────────────────────────────────────
+          _Background(isDark: isDark, rotateCtrl: _rotateCtrl),
 
-              // Auth card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 28),
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: BorderRadius.circular(14),
-                ),
+          // ── Frosted overlay ─────────────────────────────────────────────
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+            child: Container(
+              color: (isDark ? AppColors.darkBackground : const Color(0xFF1a1f35))
+                  .withValues(alpha: 0.55),
+            ),
+          ),
+
+          // ── Content ─────────────────────────────────────────────────────
+          FadeTransition(
+            opacity: _fadeIn,
+            child: Center(
+              child: SizedBox(
+                width: min(400, size.width * 0.9),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Fingerprint icon — pulses while authenticating
-                    AnimatedBuilder(
-                      animation: _pulse,
-                      builder: (_, _) => Opacity(
-                        opacity: _authenticating
-                            ? 0.4 + (_pulse.value * 0.6)
-                            : 1.0,
-                        child: Icon(
-                          Icons.fingerprint,
-                          size: 56,
-                          color: _failed
-                              ? AppColors.error
-                              : AppColors.royalBlue,
-                        ),
+                    // Avatar
+                    _Avatar(size: 88),
+                    const SizedBox(height: 20),
+
+                    // Greeting
+                    Text(
+                      _greeting,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 6),
+
+                    // Email
+                    if (SyncService.instance.currentUser.value?.email != null)
+                      Text(
+                        SyncService.instance.currentUser.value!.email!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.55),
+                        ),
+                      ),
+
+                    const SizedBox(height: 40),
+
+                    // Fingerprint ring + icon
+                    _FingerprintRing(
+                      pulseCtrl: _pulseCtrl,
+                      authenticating: _authenticating,
+                      failed: _failed,
+                    ),
+
+                    const SizedBox(height: 20),
+
                     Text(
                       _authenticating
                           ? 'Touch the fingerprint sensor…'
                           : _failed
                               ? 'Authentication failed'
-                              : 'Ready to authenticate',
+                              : 'Touch ID or password',
                       style: TextStyle(
                         fontSize: 13,
-                        color: _failed ? AppColors.error : textSecondary,
                         fontWeight: FontWeight.w500,
+                        color: _failed
+                            ? AppColors.error
+                            : Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
-                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 32),
+
+                    // Unlock button
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
@@ -155,8 +174,10 @@ class _LockScreenState extends State<LockScreen>
                           disabledBackgroundColor:
                               AppColors.royalBlue.withValues(alpha: 0.4),
                           foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           textStyle: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -170,10 +191,280 @@ class _LockScreenState extends State<LockScreen>
                   ],
                 ),
               ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Background with animated geometric pattern ────────────────────────────────
+
+class _Background extends StatelessWidget {
+  final bool isDark;
+  final AnimationController rotateCtrl;
+  const _Background({required this.isDark, required this.rotateCtrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Base gradient
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF0f1729),
+                Color(0xFF1a2340),
+                Color(0xFF0d1520),
+              ],
+              stops: [0.0, 0.5, 1.0],
+            ),
+          ),
+        ),
+        // Rotating geometric pattern
+        AnimatedBuilder(
+          animation: rotateCtrl,
+          builder: (_, _) => CustomPaint(
+            painter: _GeometricPainter(
+              progress: rotateCtrl.value,
+            ),
+          ),
+        ),
+        // Accent orbs
+        Positioned(
+          top: -80,
+          right: -60,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.royalBlue.withValues(alpha: 0.3),
+                  AppColors.royalBlue.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: -100,
+          left: -80,
+          child: Container(
+            width: 360,
+            height: 360,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.slateBlue.withValues(alpha: 0.2),
+                  AppColors.slateBlue.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GeometricPainter extends CustomPainter {
+  final double progress;
+  _GeometricPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // Concentric rotating hexagons
+    for (int ring = 1; ring <= 6; ring++) {
+      final radius = ring * 80.0;
+      final rotation = progress * 2 * pi * (ring.isEven ? 1 : -1);
+      final opacity = (0.04 + ring * 0.01).clamp(0.0, 0.12);
+      paint.color = Colors.white.withValues(alpha: opacity);
+
+      final path = Path();
+      for (int i = 0; i < 6; i++) {
+        final angle = rotation + (i * pi / 3);
+        final x = cx + radius * cos(angle);
+        final y = cy + radius * sin(angle);
+        if (i == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+      path.close();
+      canvas.drawPath(path, paint);
+    }
+
+    // Grid of dots
+    final dotPaint = Paint()..style = PaintingStyle.fill;
+    const spacing = 48.0;
+    final cols = (size.width / spacing).ceil() + 2;
+    final rows = (size.height / spacing).ceil() + 2;
+    final offsetX = (progress * spacing) % spacing;
+    final offsetY = (progress * spacing * 0.3) % spacing;
+
+    for (int r = -1; r < rows; r++) {
+      for (int c = -1; c < cols; c++) {
+        final x = c * spacing - offsetX;
+        final y = r * spacing - offsetY;
+        final dist = sqrt(pow(x - cx, 2) + pow(y - cy, 2));
+        final opacity = (0.06 - dist / (size.width * 3)).clamp(0.01, 0.06);
+        dotPaint.color = Colors.white.withValues(alpha: opacity);
+        canvas.drawCircle(Offset(x, y), 1.5, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GeometricPainter old) => old.progress != progress;
+}
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+
+class _Avatar extends StatelessWidget {
+  final double size;
+  const _Avatar({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarUrl = SyncService.instance.googleAvatarUrl;
+    final name = SyncService.instance.googleDisplayName ?? 'K';
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.royalBlue.withValues(alpha: 0.4),
+            blurRadius: 24,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: avatarUrl != null
+            ? Image.network(
+                avatarUrl,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _initials(name, size),
+              )
+            : _appIcon(size),
+      ),
+    );
+  }
+
+  Widget _initials(String name, double size) {
+    final parts = name.trim().split(' ');
+    final initials = parts.length >= 2
+        ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
+        : name[0].toUpperCase();
+    return Container(
+      width: size,
+      height: size,
+      color: AppColors.royalBlue,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: size * 0.35,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _appIcon(double size) => Image.asset(
+        'assets/png/logos/keel_icon_1024.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+      );
+}
+
+// ── Animated fingerprint ring ─────────────────────────────────────────────────
+
+class _FingerprintRing extends StatelessWidget {
+  final AnimationController pulseCtrl;
+  final bool authenticating;
+  final bool failed;
+
+  const _FingerprintRing({
+    required this.pulseCtrl,
+    required this.authenticating,
+    required this.failed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = failed ? AppColors.error : AppColors.royalBlue;
+
+    return AnimatedBuilder(
+      animation: pulseCtrl,
+      builder: (_, _) {
+        final pulse = authenticating ? pulseCtrl.value : 0.0;
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Outer pulse ring
+            if (authenticating)
+              Container(
+                width: 96 + pulse * 24,
+                height: 96 + pulse * 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.15 + pulse * 0.1),
+                    width: 1,
+                  ),
+                ),
+              ),
+            // Inner ring
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.1 + pulse * 0.08),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.4 + pulse * 0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.fingerprint,
+                size: 48,
+                color: color.withValues(alpha: 0.6 + pulse * 0.4),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

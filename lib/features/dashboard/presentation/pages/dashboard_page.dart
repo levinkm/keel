@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:keel/core/di/injector.dart';
+import 'package:keel/core/sync/sync_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
 import 'package:keel/features/dashboard/presentation/bloc/dashboard_cubit.dart';
 import 'package:keel/features/dashboard/presentation/widgets/budget_status_card.dart';
@@ -57,9 +58,36 @@ class _DashboardView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Header ────────────────────────────────────────────────
+                      // ── Header ──────────────────────────────────────────────────────
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          ValueListenableBuilder(
+                            valueListenable: SyncService.instance.currentUser,
+                            builder: (_, user, _) {
+                              if (user == null) return const SizedBox.shrink();
+                              final avatarUrl = SyncService.instance.googleAvatarUrl;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: ClipOval(
+                                  child: avatarUrl != null
+                                      ? Image.network(
+                                          avatarUrl,
+                                          width: 36,
+                                          height: 36,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, _, _) =>
+                                              _InitialsBubble(
+                                                name: SyncService.instance.googleDisplayName ?? 'U',
+                                              ),
+                                        )
+                                      : _InitialsBubble(
+                                          name: SyncService.instance.googleDisplayName ?? 'U',
+                                        ),
+                                ),
+                              );
+                            },
+                          ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -110,7 +138,6 @@ class _DashboardView extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
 
                       // ── Hero: Net Worth + Sparkline ───────────────────────────
                       _HeroCard(data: data),
@@ -222,9 +249,11 @@ class _DashboardView extends StatelessWidget {
 
   String _greeting() {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    final name = SyncService.instance.googleDisplayName?.split(' ').first;
+    final suffix = name != null && name.isNotEmpty ? ', $name' : '';
+    if (h < 12) return 'Good morning$suffix';
+    if (h < 17) return 'Good afternoon$suffix';
+    return 'Good evening$suffix';
   }
 
   String _currentPeriodLabel() {
@@ -677,4 +706,34 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SparklinePainter old) => old.history != history;
+}
+
+class _InitialsBubble extends StatelessWidget {
+  final String name;
+  const _InitialsBubble({required this.name});
+
+  String get _initials {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 36,
+        height: 36,
+        color: AppColors.royalBlue,
+        child: Center(
+          child: Text(
+            _initials,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
 }

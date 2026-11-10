@@ -1,15 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:keel/core/sync/sync_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
 import 'package:keel/features/setup/presentation/bloc/setup_cubit.dart';
 import 'package:keel/features/setup/presentation/widgets/setup_step_shell.dart';
 
-class StepWelcome extends StatelessWidget {
+class StepWelcome extends StatefulWidget {
   const StepWelcome({super.key});
+
+  @override
+  State<StepWelcome> createState() => _StepWelcomeState();
+}
+
+class _StepWelcomeState extends State<StepWelcome> {
+  bool _checkingCloud = true;
+  bool _hasCloudData = false;
+  bool _restoring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCloud();
+  }
+
+  Future<void> _checkCloud() async {
+    final has = await SyncService.instance.hasRemoteData();
+    if (mounted) setState(() { _checkingCloud = false; _hasCloudData = has; });
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    setState(() => _restoring = true);
+    final cubit = context.read<SetupCubit>();
+    final result = await SyncService.instance.restore();
+    if (!mounted) return;
+    if (result.hasError) {
+      setState(() => _restoring = false);
+    } else {
+      cubit.skipToStep(SetupStep.done);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
 
     return SetupStepShell(
       title: 'Welcome to Keel',
@@ -19,6 +54,61 @@ class StepWelcome extends StatelessWidget {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Cloud restore banner — shown only when remote data exists
+          if (!_checkingCloud && _hasCloudData) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.infoSurfaceDark : AppColors.infoSurface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_done_outlined,
+                      size: 20, color: AppColors.royalBlue),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Cloud backup found',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: textPrimary)),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Restore your previous data instead of starting fresh.',
+                          style: TextStyle(fontSize: 12, color: textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _restoring ? null : () => _restore(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.royalBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      textStyle: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    child: _restoring
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Restore'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           const SizedBox(height: 8),
           ..._features(isDark).map((f) => _FeatureTile(
                 icon: f.$1,
