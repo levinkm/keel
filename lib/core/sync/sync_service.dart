@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:keel/core/database/app_database.dart';
 import 'package:keel/core/sync/supabase_config.dart';
@@ -83,6 +82,9 @@ class SyncService {
     await Supabase.initialize(
       url: SupabaseConfig.url,
       publishableKey: SupabaseConfig.publishableKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.implicit,
+      ),
     );
 
     final prefs = await SharedPreferences.getInstance();
@@ -96,15 +98,9 @@ class SyncService {
     // Keep currentUser in sync with Supabase auth events
     _authSub = _client.auth.onAuthStateChange.listen((data) {
       currentUser.value = data.session?.user;
-      // Auto-populate display name from Google on first sign-in
       if (data.event == AuthChangeEvent.signedIn) {
         _seedDisplayNameIfEmpty(data.session?.user);
       }
-    });
-
-    // Handle OAuth deep link callbacks (keel://auth/callback?...)
-    AppLinks().uriLinkStream.listen((uri) {
-      _client.auth.getSessionFromUrl(uri);
     });
 
     syncStatus.value =
@@ -168,11 +164,13 @@ class SyncService {
   // ── Authentication ──────────────────────────────────────────────────────────
 
   /// Opens Google OAuth in the system browser.
-  /// The callback is handled via the keel:// deep link.
+  /// Uses implicit flow (no PKCE) — supabase_flutter handles the
+  /// deep link callback automatically via its built-in listener.
   Future<void> signInWithGoogle() async {
     final response = await _client.auth.getOAuthSignInUrl(
       provider: OAuthProvider.google,
-      redirectTo: 'keel://auth/callback',
+      redirectTo: 'https://levinkm.github.io/keel/auth/callback',
+      queryParams: {'flow_type': 'implicit'},
     );
     await launchUrl(
       Uri.parse(response.url),

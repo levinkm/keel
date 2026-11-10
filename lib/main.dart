@@ -35,8 +35,11 @@ class KeelApp extends StatefulWidget {
 
 class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
   bool _showSplash = true;
-  // Debounce foreground sync — don't re-sync if we just synced < 60s ago
   DateTime? _lastForegroundSync;
+  DateTime? _backgroundedAt;
+
+  // Lock only after being away for more than 5 minutes
+  static const _lockAfter = Duration(minutes: 5);
 
   @override
   void initState() {
@@ -55,14 +58,22 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused) {
-      AuthService.instance.lock();
+      // Record when we went to background — don't lock yet
+      _backgroundedAt = DateTime.now();
     }
     if (state == AppLifecycleState.resumed) {
+      // Lock only if we were away long enough
+      final backgrounded = _backgroundedAt;
+      if (backgrounded != null &&
+          DateTime.now().difference(backgrounded) >= _lockAfter) {
+        AuthService.instance.lock();
+      }
+      _backgroundedAt = null;
+
       // Sync on foreground if last sync was > 60 seconds ago
       final now = DateTime.now();
       final lastSync = _lastForegroundSync;
-      if (lastSync == null ||
-          now.difference(lastSync).inSeconds > 60) {
+      if (lastSync == null || now.difference(lastSync).inSeconds > 60) {
         _lastForegroundSync = now;
         SyncService.instance.sync(silent: true);
       }
