@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/auth/lock_screen.dart';
 import 'package:keel/core/di/injector.dart';
@@ -17,6 +18,7 @@ import 'features/settings/presentation/bloc/settings_cubit.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   await initDependencies();
   await ShortcutService.instance.init(getIt<SettingsRepository>());
   await AuthService.instance.init();

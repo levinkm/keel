@@ -1,5 +1,7 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 abstract final class SupabaseConfig {
-  static const url = 'https://jhjfokoottfrittgzcxp.supabase.co';
-  static const publishableKey =
-      'sb_publishable_-SZfnWpSHao36-ZTf9LQXQ_J7PgOCpt';
+  static String get url => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get publishableKey =>
+      dotenv.env['SUPABASE_PUBLISHABLE_KEY'] ?? '';
 }
