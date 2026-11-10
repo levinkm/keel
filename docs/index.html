@@ -4,28 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Keel — Personal Finance for macOS</title>
-  <meta name="description" content="A desktop-first personal finance app for macOS. Accounts, investments, loans, assets, income, budgets and net worth — all local, no subscriptions." />
+  <meta name="description" content="A desktop-first personal finance app for macOS. Accounts, investments, loans, assets, income, budgets and net worth. Your data stays on your machine." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --blue: #4169E1;
-      --blue-dim: rgba(65,105,225,0.12);
-      --bg: #0f1729;
-      --surface: #1b2638;
-      --surface2: #222f43;
-      --border: #34435a;
-      --text: #edf2fc;
-      --text2: #a8b4c8;
-      --text3: #8290a6;
-      --success: #668c87;
-      --warning: #b49a70;
-      --error: #b77d87;
+      --blue-light: #EEF2FF;
+      --blue-mid: #C7D2FE;
+      --text: #18243A;
+      --text2: #68758B;
+      --text3: #8793A7;
+      --bg: #ffffff;
+      --bg2: #F4F7FC;
       --radius: 12px;
     }
 
     html { scroll-behavior: smooth; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg);
@@ -33,261 +28,259 @@
       line-height: 1.6;
       overflow-x: hidden;
     }
-
     a { color: inherit; text-decoration: none; }
 
-    /* ── Nav ── */
+    /* Nav */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 48px; height: 60px;
-      background: rgba(15,23,41,0.85);
+      padding: 0 64px; height: 64px;
+      background: rgba(255,255,255,0.92);
       backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid #EDF1F8;
     }
     .nav-logo { display: flex; align-items: center; gap: 10px; }
     .nav-logo img { width: 28px; height: 28px; border-radius: 7px; }
-    .nav-logo span { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
-    .nav-links { display: flex; gap: 32px; }
+    .nav-logo span { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+    .nav-links { display: flex; gap: 36px; }
     .nav-links a { font-size: 14px; color: var(--text2); transition: color 0.15s; }
     .nav-links a:hover { color: var(--text); }
     .nav-cta {
       background: var(--blue); color: #fff;
-      padding: 8px 20px; border-radius: 8px;
+      padding: 9px 22px; border-radius: 8px;
       font-size: 14px; font-weight: 600;
       transition: opacity 0.15s;
     }
     .nav-cta:hover { opacity: 0.88; }
 
-    /* ── Hero ── */
+    /* Hero */
     .hero {
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center;
-      padding: 120px 24px 80px;
-      position: relative; overflow: hidden;
+      padding: 160px 64px 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
     }
-    .hero-bg {
-      position: absolute; inset: 0; z-index: 0;
-      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(65,105,225,0.18) 0%, transparent 70%);
+    .hero-eyebrow {
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--blue); margin-bottom: 20px;
     }
-    .hero-orb {
-      position: absolute; border-radius: 50%;
-      background: radial-gradient(circle, rgba(65,105,225,0.15), transparent 70%);
-    }
-    .hero-orb-1 { width: 600px; height: 600px; top: -200px; right: -150px; }
-    .hero-orb-2 { width: 400px; height: 400px; bottom: -100px; left: -100px; background: radial-gradient(circle, rgba(128,153,213,0.1), transparent 70%); }
-    .hero-content { position: relative; z-index: 1; max-width: 720px; }
-    .hero-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: var(--blue-dim); border: 1px solid rgba(65,105,225,0.3);
-      color: #9bb3ff; font-size: 12px; font-weight: 600;
-      padding: 5px 14px; border-radius: 20px; margin-bottom: 28px;
-      letter-spacing: 0.3px;
-    }
-    .hero-badge span { width: 6px; height: 6px; background: var(--blue); border-radius: 50%; }
     h1 {
-      font-size: clamp(40px, 6vw, 68px);
-      font-weight: 800; letter-spacing: -2px; line-height: 1.05;
+      font-size: clamp(40px, 4.5vw, 60px);
+      font-weight: 800; letter-spacing: -2px;
+      line-height: 1.05; color: var(--text);
       margin-bottom: 24px;
     }
-    h1 em { font-style: normal; color: var(--blue); }
     .hero-sub {
-      font-size: clamp(16px, 2vw, 20px);
-      color: var(--text2); max-width: 520px; margin: 0 auto 40px;
-      line-height: 1.7;
+      font-size: 18px; color: var(--text2);
+      line-height: 1.75; margin-bottom: 40px;
+      max-width: 440px;
     }
-    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
     .btn-primary {
       display: inline-flex; align-items: center; gap: 8px;
       background: var(--blue); color: #fff;
-      padding: 14px 28px; border-radius: 10px;
+      padding: 13px 26px; border-radius: 9px;
       font-size: 15px; font-weight: 600;
       transition: opacity 0.15s, transform 0.15s;
     }
     .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn-secondary {
+    .btn-ghost {
       display: inline-flex; align-items: center; gap: 8px;
-      background: var(--surface); color: var(--text);
-      border: 1px solid var(--border);
-      padding: 14px 28px; border-radius: 10px;
+      color: var(--text2);
+      padding: 13px 26px; border-radius: 9px;
       font-size: 15px; font-weight: 500;
-      transition: background 0.15s, transform 0.15s;
-    }
-    .btn-secondary:hover { background: var(--surface2); transform: translateY(-1px); }
-    .hero-note { margin-top: 20px; font-size: 12px; color: var(--text3); }
-
-    /* ── App preview ── */
-    .preview {
-      max-width: 1100px; margin: 0 auto;
-      padding: 0 24px 100px;
-      position: relative; z-index: 1;
-    }
-    .preview-frame {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
-    }
-    .preview-bar {
-      background: var(--surface2);
-      padding: 12px 16px;
-      display: flex; align-items: center; gap: 8px;
-      border-bottom: 1px solid var(--border);
-    }
-    .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .dot-r { background: #ff5f57; }
-    .dot-y { background: #febc2e; }
-    .dot-g { background: #28c840; }
-    .preview-body {
-      display: grid; grid-template-columns: 56px 1fr;
-      min-height: 480px;
-    }
-    .preview-dock {
-      background: var(--surface2);
-      border-right: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      align-items: center; padding: 16px 0; gap: 4px;
-    }
-    .dock-icon {
-      width: 36px; height: 36px; border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: var(--text3);
       transition: color 0.15s;
     }
-    .dock-icon.active { color: var(--blue); }
-    .preview-content { padding: 28px; }
-    .preview-heading {
-      font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
-      color: var(--text3); margin-bottom: 16px;
-    }
-    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-    .stat-card {
-      background: var(--surface2); border-radius: 10px;
-      padding: 14px 16px;
-    }
-    .stat-label { font-size: 10px; font-weight: 600; color: var(--text3); letter-spacing: 0.4px; margin-bottom: 6px; }
-    .stat-value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
-    .stat-value.blue { color: var(--blue); }
-    .stat-value.green { color: var(--success); }
-    .stat-value.red { color: var(--error); }
-    .chart-bar {
-      background: var(--surface2); border-radius: 10px;
-      padding: 16px; height: 120px;
-      display: flex; align-items: flex-end; gap: 6px;
-    }
-    .bar {
-      flex: 1; border-radius: 4px 4px 0 0;
-      background: rgba(65,105,225,0.3);
-      transition: background 0.2s;
-    }
-    .bar.active { background: var(--blue); }
-    .bar:hover { background: rgba(65,105,225,0.6); }
+    .btn-ghost:hover { color: var(--text); }
+    .hero-note { margin-top: 20px; font-size: 12px; color: var(--text3); }
 
-    /* ── Section ── */
-    section { padding: 100px 24px; }
-    .section-inner { max-width: 1100px; margin: 0 auto; }
-    .section-label {
-      font-size: 11px; font-weight: 700; letter-spacing: 1px;
-      color: var(--blue); text-transform: uppercase; margin-bottom: 12px;
+    /* Hero screenshot */
+    .hero-visual { position: relative; }
+    .hero-screenshot {
+      width: 100%;
+      border-radius: 14px;
+      box-shadow: 0 32px 80px rgba(65,105,225,0.12), 0 8px 24px rgba(0,0,0,0.08);
+      display: block;
+    }
+
+    /* Screenshot strip */
+    .screenshots {
+      background: var(--bg2);
+      padding: 80px 0;
+      overflow: hidden;
+    }
+    .screenshots-label {
+      text-align: center;
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text3); margin-bottom: 40px;
+    }
+    .screenshots-track {
+      display: flex; gap: 24px;
+      padding: 0 64px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .screenshots-track::-webkit-scrollbar { display: none; }
+    .screenshot-item {
+      flex-shrink: 0;
+      width: 720px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.1);
+    }
+    .screenshot-item img { width: 100%; display: block; }
+
+    /* Features */
+    .features {
+      padding: 100px 64px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .section-eyebrow {
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--blue); margin-bottom: 16px;
     }
     h2 {
-      font-size: clamp(28px, 4vw, 44px);
-      font-weight: 800; letter-spacing: -1px; line-height: 1.1;
-      margin-bottom: 16px;
+      font-size: clamp(30px, 3.5vw, 48px);
+      font-weight: 800; letter-spacing: -1.5px;
+      line-height: 1.1; margin-bottom: 16px;
     }
     .section-sub {
-      font-size: 17px; color: var(--text2); max-width: 520px;
-      line-height: 1.7; margin-bottom: 56px;
+      font-size: 18px; color: var(--text2);
+      line-height: 1.7; max-width: 520px;
+      margin-bottom: 64px;
     }
-
-    /* ── Features grid ── */
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 48px 40px;
     }
-    .feature-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .feature-card:hover { border-color: rgba(65,105,225,0.4); transform: translateY(-2px); }
     .feature-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      background: var(--blue-dim);
+      width: 44px; height: 44px;
+      background: var(--blue-light);
+      border-radius: 11px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px; margin-bottom: 16px;
+      font-size: 22px; margin-bottom: 16px;
     }
-    .feature-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .feature-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
+    .feature-title {
+      font-size: 16px; font-weight: 700;
+      color: var(--text); margin-bottom: 8px;
+    }
+    .feature-desc {
+      font-size: 14px; color: var(--text2); line-height: 1.65;
+    }
 
-    /* ── Principles ── */
-    .principles { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    /* Principles */
+    .principles {
+      background: var(--blue);
+      padding: 100px 64px;
+      color: #fff;
+    }
+    .principles-inner { max-width: 1200px; margin: 0 auto; }
+    .principles .section-eyebrow { color: rgba(255,255,255,0.6); }
+    .principles h2 { color: #fff; margin-bottom: 64px; }
     .principles-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 40px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 48px;
     }
-    .principle-num { font-size: 11px; font-weight: 700; color: var(--blue); letter-spacing: 0.5px; margin-bottom: 10px; }
-    .principle-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .principle-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
+    .principle-num {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 12px;
+    }
+    .principle-title {
+      font-size: 16px; font-weight: 700;
+      color: #fff; margin-bottom: 10px;
+    }
+    .principle-desc {
+      font-size: 14px;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.65;
+    }
 
-    /* ── Roadmap ── */
-    .roadmap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    /* Roadmap */
+    .roadmap {
+      padding: 100px 64px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .roadmap-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
     .roadmap-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 28px;
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 36px;
     }
     .roadmap-phase {
-      font-size: 11px; font-weight: 700; letter-spacing: 0.8px;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase;
       color: var(--blue); margin-bottom: 8px;
     }
-    .roadmap-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    .roadmap-title {
+      font-size: 20px; font-weight: 700;
+      margin-bottom: 28px;
+    }
     .roadmap-item {
-      display: flex; align-items: flex-start; gap: 10px;
-      font-size: 14px; color: var(--text2); margin-bottom: 10px;
+      display: flex; align-items: flex-start;
+      gap: 10px; font-size: 14px;
+      color: var(--text2); margin-bottom: 12px;
     }
-    .roadmap-item .check { color: var(--success); font-size: 13px; margin-top: 2px; flex-shrink: 0; }
-    .roadmap-item .pending { color: var(--text3); font-size: 13px; margin-top: 2px; flex-shrink: 0; }
+    .roadmap-item .check { color: var(--blue); flex-shrink: 0; margin-top: 1px; }
+    .roadmap-item .pending { color: var(--text3); flex-shrink: 0; margin-top: 1px; }
 
-    /* ── CTA ── */
-    .cta-section {
-      text-align: center; padding: 100px 24px;
-      background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(65,105,225,0.12) 0%, transparent 70%);
+    /* CTA */
+    .cta {
+      background: var(--bg2);
+      padding: 100px 64px;
+      text-align: center;
     }
-    .cta-section h2 { margin-bottom: 16px; }
-    .cta-section p { color: var(--text2); font-size: 17px; margin-bottom: 40px; }
+    .cta h2 { margin-bottom: 16px; }
+    .cta p { font-size: 18px; color: var(--text2); margin-bottom: 40px; }
+    .cta-actions { display: flex; gap: 12px; justify-content: center; }
 
-    /* ── Footer ── */
+    /* Footer */
     footer {
-      border-top: 1px solid var(--border);
-      padding: 40px 48px;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 16px;
+      border-top: 1px solid #EDF1F8;
+      padding: 40px 64px;
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 16px;
     }
     .footer-logo { display: flex; align-items: center; gap: 10px; }
     .footer-logo img { width: 24px; height: 24px; border-radius: 6px; }
     .footer-logo span { font-size: 14px; font-weight: 700; }
-    .footer-links { display: flex; gap: 24px; }
+    .footer-links { display: flex; gap: 28px; }
     .footer-links a { font-size: 13px; color: var(--text3); transition: color 0.15s; }
     .footer-links a:hover { color: var(--text2); }
     .footer-copy { font-size: 13px; color: var(--text3); }
 
-    @media (max-width: 768px) {
-      nav { padding: 0 20px; }
+    @media (max-width: 900px) {
+      nav { padding: 0 24px; }
       .nav-links { display: none; }
+      .hero { grid-template-columns: 1fr; padding: 120px 24px 60px; gap: 48px; }
+      .features { padding: 80px 24px; }
+      .features-grid { grid-template-columns: 1fr 1fr; gap: 36px 28px; }
+      .principles { padding: 80px 24px; }
+      .principles-grid { grid-template-columns: 1fr 1fr; gap: 36px; }
+      .roadmap { padding: 80px 24px; }
       .roadmap-grid { grid-template-columns: 1fr; }
-      footer { flex-direction: column; align-items: flex-start; }
+      .cta { padding: 80px 24px; }
+      footer { padding: 32px 24px; flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
 
-<!-- Nav -->
 <nav>
   <div class="nav-logo">
     <img src="https://raw.githubusercontent.com/levinkm/keel/main/assets/png/logos/keel_icon_1024.png" alt="Keel" />
@@ -302,215 +295,156 @@
   <a href="https://github.com/levinkm/keel/releases" class="nav-cta">Download</a>
 </nav>
 
-<!-- Hero -->
 <section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-orb hero-orb-1"></div>
-  <div class="hero-orb hero-orb-2"></div>
-  <div class="hero-content">
-    <div class="hero-badge"><span></span> macOS Desktop App</div>
-    <h1>Your finances,<br /><em>clearly.</em></h1>
+  <div>
+    <div class="hero-eyebrow">macOS Desktop App</div>
+    <h1>Your finances,<br>clearly.</h1>
     <p class="hero-sub">
-      A desktop-first personal finance app for macOS. Accounts, investments,
-      loans, assets, income, budgets and net worth — all in one place.
-      Your data stays on your machine.
+      Accounts, investments, loans, assets, income, budgets and net worth —
+      all in one native macOS app. Your data stays on your machine.
     </p>
     <div class="hero-actions">
-      <a href="https://github.com/levinkm/keel/releases" class="btn-primary">
-        ⬇ Download for macOS
-      </a>
-      <a href="https://github.com/levinkm/keel" class="btn-secondary">
-        View on GitHub
-      </a>
+      <a href="https://github.com/levinkm/keel/releases" class="btn-primary">Download for macOS</a>
+      <a href="https://github.com/levinkm/keel" class="btn-ghost">View on GitHub →</a>
     </div>
-    <p class="hero-note">Free and open source · macOS 12+ · No subscription</p>
+    <p class="hero-note">Free and open source · macOS 12+ · No subscription required</p>
+  </div>
+  <div class="hero-visual">
+    <img src="screenshots/screen1.png" alt="Keel dashboard" class="hero-screenshot" />
   </div>
 </section>
 
-<!-- App preview -->
-<div class="preview">
-  <div class="preview-frame">
-    <div class="preview-bar">
-      <div class="dot dot-r"></div>
-      <div class="dot dot-y"></div>
-      <div class="dot dot-g"></div>
-    </div>
-    <div class="preview-body">
-      <div class="preview-dock">
-        <div class="dock-icon active">⊞</div>
-        <div class="dock-icon">◈</div>
-        <div class="dock-icon">▤</div>
-        <div class="dock-icon">↕</div>
-        <div class="dock-icon">◎</div>
-        <div class="dock-icon">↑</div>
-        <div class="dock-icon">↓</div>
-      </div>
-      <div class="preview-content">
-        <div class="preview-heading">DASHBOARD · NOVEMBER 2026</div>
-        <div class="stat-grid">
-          <div class="stat-card">
-            <div class="stat-label">NET WORTH</div>
-            <div class="stat-value blue">KES 4.2M</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">LIQUID CASH</div>
-            <div class="stat-value green">KES 820K</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">TOTAL DEBT</div>
-            <div class="stat-value red">KES 1.1M</div>
-          </div>
-        </div>
-        <div class="chart-bar">
-          <div class="bar" style="height:40%"></div>
-          <div class="bar" style="height:55%"></div>
-          <div class="bar" style="height:48%"></div>
-          <div class="bar" style="height:62%"></div>
-          <div class="bar" style="height:70%"></div>
-          <div class="bar active" style="height:85%"></div>
-        </div>
-      </div>
-    </div>
+<div class="screenshots">
+  <div class="screenshots-label">The app</div>
+  <div class="screenshots-track">
+    <div class="screenshot-item"><img src="screenshots/screen2.png" alt="Accounts" /></div>
+    <div class="screenshot-item"><img src="screenshots/screen3.png" alt="Investments" /></div>
+    <div class="screenshot-item"><img src="screenshots/screen4.png" alt="Net Worth" /></div>
+    <div class="screenshot-item"><img src="screenshots/screen1.png" alt="Dashboard" /></div>
   </div>
 </div>
 
-<!-- Features -->
-<section id="features">
-  <div class="section-inner">
-    <div class="section-label">Features</div>
-    <h2>Everything you need.<br />Nothing you don't.</h2>
-    <p class="section-sub">
-      Built for people who want serious financial visibility without
-      the overhead of enterprise accounting software.
-    </p>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">📒</div>
-        <div class="feature-title">Double-entry Ledger</div>
-        <div class="feature-desc">Every transaction balances. Net worth, loan balances and cash flow fall out of the data automatically. Asset, liability, income and expense account types.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📈</div>
-        <div class="feature-title">Investments</div>
-        <div class="feature-desc">Holdings across stocks, ETFs, unit trusts, fixed deposits, treasury bills, SACCOs and pension schemes. Lot tracking with unrealised and realised gain calculations.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🏦</div>
-        <div class="feature-title">Loan Engine</div>
-        <div class="feature-desc">Borrowed and lent loan tracking. Real amortisation schedules, payment event recording, interest calculations and settlement quotes on demand.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📊</div>
-        <div class="feature-title">Envelope Budgeting</div>
-        <div class="feature-desc">Monthly period plans with strategy allocation — 50/30/20, Commitments First, Kakeibo or custom ratios. Rollover support and actual vs planned comparison.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🏠</div>
-        <div class="feature-title">Physical Assets</div>
-        <div class="feature-desc">Track vehicles, buildings, land and machinery. Depreciation schedules, insurance expiry tracking and project linkage for cost attribution.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔮</div>
-        <div class="feature-title">Net Worth Projections</div>
-        <div class="feature-desc">Forward trajectory modelling with configurable income growth, expense growth and savings targets. Loan payoff schedules factored in automatically.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📄</div>
-        <div class="feature-title">PDF Reports</div>
-        <div class="feature-desc">Export profit and loss statements, budget summaries, loan schedules, investment portfolios and asset registers. Full Unicode font support.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">☁️</div>
-        <div class="feature-title">Cloud Sync</div>
-        <div class="feature-desc">Optional Supabase-powered sync with Google sign-in. Offline-first — everything works locally. Sync is additive, never a replacement for local data.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⌨️</div>
-        <div class="feature-title">Keyboard First</div>
-        <div class="feature-desc">Native macOS menu bar, transparent title bar, live shortcut recording. Every action reachable from the keyboard. No bottom sheets — dialogs only.</div>
-      </div>
+<section class="features" id="features">
+  <div class="section-eyebrow">Features</div>
+  <h2>Everything you need.<br>Nothing you don't.</h2>
+  <p class="section-sub">
+    Built for people who want serious financial visibility without
+    the overhead of enterprise accounting software.
+  </p>
+  <div class="features-grid">
+    <div>
+      <div class="feature-icon">📒</div>
+      <div class="feature-title">Double-entry Ledger</div>
+      <div class="feature-desc">Every transaction balances. Net worth, loan balances and cash flow fall out of the data automatically.</div>
+    </div>
+    <div>
+      <div class="feature-icon">📈</div>
+      <div class="feature-title">Investments</div>
+      <div class="feature-desc">Stocks, ETFs, unit trusts, fixed deposits, treasury bills, SACCOs and pension schemes. Lot tracking with unrealised and realised gains.</div>
+    </div>
+    <div>
+      <div class="feature-icon">🏦</div>
+      <div class="feature-title">Loan Engine</div>
+      <div class="feature-desc">Real amortisation schedules, payment recording, interest calculations and settlement quotes for both borrowed and lent loans.</div>
+    </div>
+    <div>
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Envelope Budgeting</div>
+      <div class="feature-desc">Monthly plans with strategy allocation — 50/30/20 or custom ratios. Rollover support and actual vs planned comparison.</div>
+    </div>
+    <div>
+      <div class="feature-icon">🏠</div>
+      <div class="feature-title">Physical Assets</div>
+      <div class="feature-desc">Vehicles, buildings, land and machinery. Depreciation schedules, insurance expiry tracking and project linkage.</div>
+    </div>
+    <div>
+      <div class="feature-icon">🔮</div>
+      <div class="feature-title">Net Worth Projections</div>
+      <div class="feature-desc">Forward trajectory modelling with income growth, expense growth and savings targets. Loan payoffs factored in automatically.</div>
+    </div>
+    <div>
+      <div class="feature-icon">📄</div>
+      <div class="feature-title">PDF Reports</div>
+      <div class="feature-desc">Export P&L statements, budget summaries, loan schedules, investment portfolios and asset registers.</div>
+    </div>
+    <div>
+      <div class="feature-icon">☁️</div>
+      <div class="feature-title">Cloud Sync</div>
+      <div class="feature-desc">Optional sync with Google sign-in. Offline-first — everything works locally. Sync is additive, never a replacement.</div>
+    </div>
+    <div>
+      <div class="feature-icon">⌨️</div>
+      <div class="feature-title">Keyboard First</div>
+      <div class="feature-desc">Native macOS menu bar, transparent title bar, live shortcut recording. Every action reachable from the keyboard.</div>
     </div>
   </div>
 </section>
 
-<!-- Principles -->
-<section id="principles" class="principles">
-  <div class="section-inner">
-    <div class="section-label">Design Principles</div>
+<section class="principles" id="principles">
+  <div class="principles-inner">
+    <div class="section-eyebrow">Design Principles</div>
     <h2>Built on three ideas.</h2>
-    <p class="section-sub" style="margin-bottom: 48px;">
-      Every decision in Keel traces back to one of these.
-    </p>
     <div class="principles-grid">
       <div>
         <div class="principle-num">01</div>
         <div class="principle-title">Your data belongs to you</div>
-        <div class="principle-desc">Everything is stored locally in SQLite. Nothing leaves your machine unless you choose to sync it. No accounts required to use the app.</div>
+        <div class="principle-desc">Everything is stored locally in SQLite. Nothing leaves your machine unless you choose to sync it.</div>
       </div>
       <div>
         <div class="principle-num">02</div>
         <div class="principle-title">Desktop is the right surface</div>
-        <div class="principle-desc">Deep data entry, multi-panel layouts, keyboard shortcuts and PDF reports are all first-class citizens. Mobile is a companion, not the primary surface.</div>
+        <div class="principle-desc">Deep data entry, multi-panel layouts, keyboard shortcuts and PDF reports are all first-class citizens.</div>
       </div>
       <div>
         <div class="principle-num">03</div>
         <div class="principle-title">Correctness over convenience</div>
-        <div class="principle-desc">Money is stored as integer minor units throughout the entire stack. No floating point arithmetic, no rounding errors. Double-entry ensures every transaction balances.</div>
+        <div class="principle-desc">Money is stored as integer minor units throughout. No floating point arithmetic, no rounding errors.</div>
       </div>
       <div>
         <div class="principle-num">04</div>
         <div class="principle-title">Clean, minimal UI</div>
-        <div class="principle-desc">No card borders. No tinted selection backgrounds. No blur effects on content. Visual hierarchy through typography and spacing, not decoration.</div>
+        <div class="principle-desc">No card borders. No tinted selection backgrounds. Visual hierarchy through typography and spacing.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Roadmap -->
-<section id="roadmap">
-  <div class="section-inner">
-    <div class="section-label">Roadmap</div>
-    <h2>Where we are.<br />Where we're going.</h2>
-    <p class="section-sub">Keel is actively developed. Phase 1 ships today.</p>
-    <div class="roadmap-grid">
-      <div class="roadmap-card">
-        <div class="roadmap-phase">PHASE 1 — CURRENT</div>
-        <div class="roadmap-title">Desktop</div>
-        <div class="roadmap-item"><span class="check">✓</span> Core financial modules</div>
-        <div class="roadmap-item"><span class="check">✓</span> macOS native integration</div>
-        <div class="roadmap-item"><span class="check">✓</span> Keyboard shortcut system</div>
-        <div class="roadmap-item"><span class="check">✓</span> PDF report generation</div>
-        <div class="roadmap-item"><span class="check">✓</span> Shimmer loading states</div>
-        <div class="roadmap-item"><span class="check">✓</span> Responsive panel layout</div>
-        <div class="roadmap-item"><span class="check">✓</span> Touch ID lock screen</div>
-        <div class="roadmap-item"><span class="check">✓</span> Cloud sync with Google sign-in</div>
-      </div>
-      <div class="roadmap-card">
-        <div class="roadmap-phase">PHASE 2 — UPCOMING</div>
-        <div class="roadmap-title">Sync + Mobile</div>
-        <div class="roadmap-item"><span class="pending">○</span> Mobile companion app (iOS + Android)</div>
-        <div class="roadmap-item"><span class="pending">○</span> Push notifications for due dates</div>
-        <div class="roadmap-item"><span class="pending">○</span> CSV / OFX / QIF bank import</div>
-        <div class="roadmap-item"><span class="pending">○</span> Recurring transaction automation</div>
-        <div class="roadmap-item"><span class="pending">○</span> Multi-currency support</div>
-        <div class="roadmap-item"><span class="pending">○</span> Deeper analytics and charts</div>
-      </div>
+<section class="roadmap" id="roadmap">
+  <div class="section-eyebrow">Roadmap</div>
+  <h2>Where we are.<br>Where we're going.</h2>
+  <p class="section-sub">Phase 1 ships today. Phase 2 brings mobile.</p>
+  <div class="roadmap-grid">
+    <div class="roadmap-card">
+      <div class="roadmap-phase">Phase 1 — Current</div>
+      <div class="roadmap-title">Desktop</div>
+      <div class="roadmap-item"><span class="check">✓</span> Core financial modules</div>
+      <div class="roadmap-item"><span class="check">✓</span> macOS native integration</div>
+      <div class="roadmap-item"><span class="check">✓</span> Keyboard shortcut system</div>
+      <div class="roadmap-item"><span class="check">✓</span> PDF report generation</div>
+      <div class="roadmap-item"><span class="check">✓</span> Touch ID lock screen</div>
+      <div class="roadmap-item"><span class="check">✓</span> Cloud sync with Google sign-in</div>
+    </div>
+    <div class="roadmap-card">
+      <div class="roadmap-phase">Phase 2 — Upcoming</div>
+      <div class="roadmap-title">Sync + Mobile</div>
+      <div class="roadmap-item"><span class="pending">○</span> Mobile companion app (iOS + Android)</div>
+      <div class="roadmap-item"><span class="pending">○</span> Push notifications for due dates</div>
+      <div class="roadmap-item"><span class="pending">○</span> CSV / OFX / QIF bank import</div>
+      <div class="roadmap-item"><span class="pending">○</span> Recurring transaction automation</div>
+      <div class="roadmap-item"><span class="pending">○</span> Multi-currency support</div>
     </div>
   </div>
 </section>
 
-<!-- CTA -->
-<section class="cta-section">
-  <div class="section-label" style="margin-bottom:16px">Open Source · MIT License</div>
+<section class="cta">
   <h2>Start tracking your finances.</h2>
   <p>Free, local, no subscription. Download and run in under a minute.</p>
-  <div class="hero-actions">
-    <a href="https://github.com/levinkm/keel/releases" class="btn-primary">⬇ Download for macOS</a>
-    <a href="https://github.com/levinkm/keel" class="btn-secondary">View Source</a>
+  <div class="cta-actions">
+    <a href="https://github.com/levinkm/keel/releases" class="btn-primary">Download for macOS</a>
+    <a href="https://github.com/levinkm/keel" class="btn-ghost">View Source →</a>
   </div>
 </section>
 
-<!-- Footer -->
 <footer>
   <div class="footer-logo">
     <img src="https://raw.githubusercontent.com/levinkm/keel/main/assets/png/logos/keel_icon_1024.png" alt="Keel" />
