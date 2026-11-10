@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:keel/core/database/app_database.dart';
 import 'package:keel/core/sync/supabase_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum SyncStatus { idle, syncing, success, error, disabled }
 
@@ -30,11 +34,24 @@ class SyncService {
 
   static const _keyEnabled = 'cloudSyncEnabled';
   static const _keyLastSync = 'cloudLastSync';
+  static const _keyInterval = 'cloudSyncIntervalMinutes';
+  static const defaultIntervalMinutes = 15;
 
   final syncStatus = ValueNotifier<SyncStatus>(SyncStatus.idle);
   final lastSyncAt = ValueNotifier<DateTime?>(null);
   final isEnabled = ValueNotifier<bool>(false);
   final lastResult = ValueNotifier<SyncResult?>(null);
+  final currentUser = ValueNotifier<User?>(null);
+
+  StreamSubscription<AuthState>? _authSub;
+
+  void dispose() {
+    _authSub?.cancel();
+    stopAutoSync();
+  }
+
+  Timer? _autoSyncTimer;
+  bool _syncing = false;
 
   // Tables in dependency order — parents before children.
   // project_entries and settings handled separately (no standard id/updated_at).
@@ -74,11 +91,21 @@ class SyncService {
     final lastStr = prefs.getString(_keyLastSync);
     if (lastStr != null) lastSyncAt.value = DateTime.tryParse(lastStr);
 
-    if (isEnabled.value) {
-      syncStatus.value = SyncStatus.idle;
-    } else {
-      syncStatus.value = SyncStatus.disabled;
-    }
+    // Reflect current auth state
+    currentUser.value = _client.auth.currentUser;
+
+    // Keep currentUser in sync with Supabase auth events
+    _authSub = _client.auth.onAuthStateChange.listen((data) {
+      currentUser.value = data.session?.user;
+    });
+
+    // Handle OAuth deep link callbacks (keel://auth/callback?...)
+    AppLinks().uriLinkStream.listen((uri) {
+      _client.auth.getSessionFromUrl(uri);
+    });
+
+    syncStatus.value =
+        isEnabled.value ? SyncStatus.idle : SyncStatus.disabled;
   }
 
   Future<void> setEnabled(bool enabled) async {
@@ -88,16 +115,81 @@ class SyncService {
     syncStatus.value = enabled ? SyncStatus.idle : SyncStatus.disabled;
 
     if (enabled) {
-      // Sign in anonymously so we have a user_id immediately.
-      // If the user later adds email auth, the anonymous account is upgraded.
-      await _ensureSignedIn();
+      startAutoSync();
+    } else {
+      stopAutoSync();
     }
   }
 
-  /// Ensures the user is signed in. Uses anonymous auth as the baseline.
+  /// Start the recurring background sync timer.
+  /// Safe to call multiple times — cancels any existing timer first.
+  void startAutoSync({int? intervalMinutes}) {
+    stopAutoSync();
+    if (!isEnabled.value) return;
+    final minutes = intervalMinutes ?? _cachedInterval;
+    _autoSyncTimer = Timer.periodic(
+      Duration(minutes: minutes),
+      (_) => _backgroundSync(),
+    );
+  }
+
+  /// Stop the recurring sync timer.
+  void stopAutoSync() {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = null;
+  }
+
+  int _cachedInterval = defaultIntervalMinutes;
+
+  Future<int> getSyncIntervalMinutes() async {
+    final prefs = await SharedPreferences.getInstance();
+    _cachedInterval = prefs.getInt(_keyInterval) ?? defaultIntervalMinutes;
+    return _cachedInterval;
+  }
+
+  Future<void> setSyncIntervalMinutes(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyInterval, minutes);
+    _cachedInterval = minutes;
+    // Restart timer with new interval if running
+    if (_autoSyncTimer != null) startAutoSync(intervalMinutes: minutes);
+  }
+
+  /// Silent background sync — does not update syncStatus to avoid
+  /// UI flicker on automatic syncs. Only updates lastSyncAt on success.
+  Future<void> _backgroundSync() async {
+    if (_syncing || !isEnabled.value || !canSync) return;
+    await sync(silent: true);
+  }
+
+  // ── Authentication ──────────────────────────────────────────────────────────
+
+  /// Opens Google OAuth in the system browser.
+  /// The callback is handled via the keel:// deep link.
+  Future<void> signInWithGoogle() async {
+    final response = await _client.auth.getOAuthSignInUrl(
+      provider: OAuthProvider.google,
+      redirectTo: 'keel://auth/callback',
+    );
+    await launchUrl(
+      Uri.parse(response.url),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Future<void> signOut() async {
+    await _client.auth.signOut();
+    currentUser.value = null;
+  }
+
+  bool get isSignedIn => _client.auth.currentUser != null;
+
+  /// Guard for sync operations — throws if not signed in.
   Future<void> _ensureSignedIn() async {
     if (_client.auth.currentUser != null) return;
-    await _client.auth.signInAnonymously();
+    throw Exception(
+      'Sign in with Google first to enable cloud sync.',
+    );
   }
 
   // ── Incremental sync ────────────────────────────────────────────────────────
@@ -105,12 +197,14 @@ class SyncService {
   /// Push local changes to Supabase, pull remote changes back.
   /// Conflict resolution: last-write-wins on updated_at.
   /// Safe to call when offline — returns early with no state change.
-  Future<SyncResult> sync() async {
+  Future<SyncResult> sync({bool silent = false}) async {
     if (!isEnabled.value) {
       return const SyncResult(error: 'Cloud sync is not enabled.');
     }
+    if (_syncing) return const SyncResult(error: 'Sync already in progress.');
 
-    syncStatus.value = SyncStatus.syncing;
+    _syncing = true;
+    if (!silent) syncStatus.value = SyncStatus.syncing;
 
     try {
       await _ensureSignedIn();
@@ -148,12 +242,17 @@ class SyncService {
       await prefs.setString(_keyLastSync, now.toIso8601String());
 
       final result = SyncResult(
-          pushed: pushed, pulled: pulled, conflicts: conflicts);
+        pushed: pushed,
+        pulled: pulled,
+        conflicts: conflicts,
+      );
       lastResult.value = result;
-      syncStatus.value = SyncStatus.success;
+      if (!silent) syncStatus.value = SyncStatus.success;
+      _syncing = false;
       return result;
     } catch (e) {
-      syncStatus.value = SyncStatus.error;
+      if (!silent) syncStatus.value = SyncStatus.error;
+      _syncing = false;
       final result = SyncResult(error: e.toString());
       lastResult.value = result;
       return result;
@@ -182,17 +281,30 @@ class SyncService {
           );
 
     if (localRows.isNotEmpty) {
-      final toUpsert = localRows.map((r) => {
-            ...r,
-            'user_id': userId,
-            // Normalise booleans: SQLite stores 0/1, Postgres wants bool
-            ...r.map((k, v) => MapEntry(k, v is int && (k.startsWith('is_') || k == 'is_locked' || k == 'is_template' || k == 'is_builtin' || k == 'is_salary_deducted') ? v == 1 : v)),
-          }).toList();
+      final toUpsert = localRows
+          .map(
+            (r) => {
+              ...r,
+              'user_id': userId,
+              // Normalise booleans: SQLite stores 0/1, Postgres wants bool
+              ...r.map(
+                (k, v) => MapEntry(
+                  k,
+                  v is int &&
+                          (k.startsWith('is_') ||
+                              k == 'is_locked' ||
+                              k == 'is_template' ||
+                              k == 'is_builtin' ||
+                              k == 'is_salary_deducted')
+                      ? v == 1
+                      : v,
+                ),
+              ),
+            },
+          )
+          .toList();
 
-      await _client.from('keel_$table').upsert(
-            toUpsert,
-            onConflict: 'id',
-          );
+      await _client.from('keel_$table').upsert(toUpsert, onConflict: 'id');
       pushed += localRows.length;
     }
 
@@ -222,13 +334,13 @@ class SyncService {
       );
 
       final local = localMatches.isEmpty ? null : localMatches.first;
-      final remoteUpdated = DateTime.tryParse(
-              remote['updated_at']?.toString() ?? '') ??
+      final remoteUpdated =
+          DateTime.tryParse(remote['updated_at']?.toString() ?? '') ??
           DateTime(0);
       final localUpdated = local == null
           ? DateTime(0)
           : DateTime.tryParse(local['updated_at']?.toString() ?? '') ??
-              DateTime(0);
+                DateTime(0);
 
       if (local == null) {
         // New row from remote — insert locally
@@ -287,21 +399,15 @@ class SyncService {
           );
 
     if (localRows.isNotEmpty) {
-      final toUpsert = localRows
-          .map((r) => {...r, 'user_id': userId})
-          .toList();
-      await _client.from('keel_settings').upsert(
-            toUpsert,
-            onConflict: 'user_id,key',
-          );
+      final toUpsert = localRows.map((r) => {...r, 'user_id': userId}).toList();
+      await _client
+          .from('keel_settings')
+          .upsert(toUpsert, onConflict: 'user_id,key');
       pushed += localRows.length;
     }
 
     // Pull
-    var query = _client
-        .from('keel_settings')
-        .select()
-        .eq('user_id', userId);
+    var query = _client.from('keel_settings').select().eq('user_id', userId);
     if (since != null) {
       query = query.gt('updated_at', since.toIso8601String());
     }
@@ -312,7 +418,7 @@ class SyncService {
       if (key == null) continue;
       final remoteUpdated =
           DateTime.tryParse(remote['updated_at']?.toString() ?? '') ??
-              DateTime(0);
+          DateTime(0);
       final localMatches = await db.query(
         'settings',
         where: 'key = ?',
@@ -322,15 +428,16 @@ class SyncService {
       final localUpdated = localMatches.isEmpty
           ? DateTime(0)
           : DateTime.tryParse(
-                  localMatches.first['updated_at']?.toString() ?? '') ??
-              DateTime(0);
+                  localMatches.first['updated_at']?.toString() ?? '',
+                ) ??
+                DateTime(0);
 
       if (localMatches.isEmpty || remoteUpdated.isAfter(localUpdated)) {
-        await db.insert(
-          'settings',
-          {'key': key, 'value': remote['value'], 'updated_at': remote['updated_at']},
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await db.insert('settings', {
+          'key': key,
+          'value': remote['value'],
+          'updated_at': remote['updated_at'],
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
         pulled++;
       }
     }
@@ -383,12 +490,11 @@ class SyncService {
             .limit(1000);
 
         for (final row in settingsRows) {
-          await txn.insert(
-            'settings',
-            {'key': row['key'], 'value': row['value'],
-             'updated_at': row['updated_at']},
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          await txn.insert('settings', {
+            'key': row['key'],
+            'value': row['value'],
+            'updated_at': row['updated_at'],
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
           pulled++;
         }
       });
@@ -434,8 +540,7 @@ class SyncService {
 
   /// Whether sync is available and the user is authenticated.
   /// Mobile app uses this to gate all sync-dependent features.
-  bool get canSync =>
-      isEnabled.value && _client.auth.currentUser != null;
+  bool get canSync => isEnabled.value && _client.auth.currentUser != null;
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 

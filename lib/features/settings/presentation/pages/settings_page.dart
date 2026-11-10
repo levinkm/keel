@@ -10,6 +10,7 @@ import 'package:keel/core/theme/app_colors.dart';
 import 'package:keel/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:keel/core/widgets/page_shell.dart';
 import 'package:keel/core/widgets/shimmer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum _Section { profile, appearance, security, data, shortcuts, about }
 
@@ -1105,7 +1106,14 @@ class _CloudBackupCard extends StatefulWidget {
 class _CloudBackupCardState extends State<_CloudBackupCard> {
   String? _message;
   bool _isError = false;
+  int _intervalMinutes = SyncService.defaultIntervalMinutes;
 
+  @override
+  void initState() {
+    super.initState();
+    SyncService.instance.getSyncIntervalMinutes()
+        .then((v) => setState(() => _intervalMinutes = v));
+  }
   Future<void> _backup() async {
     setState(() {
       _message = null;
@@ -1222,40 +1230,70 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: SyncService.instance.isEnabled,
-      builder: (_, enabled, _) {
-        return ValueListenableBuilder<SyncStatus>(
-          valueListenable: SyncService.instance.syncStatus,
-          builder: (_, status, _) {
-            final isSyncing = status == SyncStatus.syncing;
-            return ValueListenableBuilder<DateTime?>(
-              valueListenable: SyncService.instance.lastSyncAt,
-              builder: (_, lastSync, _) {
-                return _card(widget.surface, [
-                  // Enable toggle
-                  _row(
-                    label: 'Enable cloud backup',
-                    sub:
-                        'Securely back up your data. '
-                        'Nothing is sent unless you enable this.',
-                    trailing: CupertinoSwitch(
-                      value: enabled,
-                      activeTrackColor: AppColors.royalBlue,
-                      onChanged: (v) => SyncService.instance.setEnabled(v),
-                    ),
-                    textPrimary: widget.textPrimary,
-                    textSecondary: widget.textSecondary,
-                    divider: widget.divider,
-                    isLast: !enabled,
-                  ),
-                  if (enabled) ...[
+    return ValueListenableBuilder<User?>(
+      valueListenable: SyncService.instance.currentUser,
+      builder: (_, user, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: SyncService.instance.isEnabled,
+          builder: (_, enabled, _) {
+            return ValueListenableBuilder<SyncStatus>(
+              valueListenable: SyncService.instance.syncStatus,
+              builder: (_, status, _) {
+                final isSyncing = status == SyncStatus.syncing;
+                return ValueListenableBuilder<DateTime?>(
+                  valueListenable: SyncService.instance.lastSyncAt,
+                  builder: (_, lastSync, _) {
+                    return _card(widget.surface, [
+                      // Google sign-in / signed-in state
+                      if (user == null)
+                        _GoogleSignInRow(
+                          isDark: widget.isDark,
+                          surface: widget.surface,
+                          textPrimary: widget.textPrimary,
+                          textSecondary: widget.textSecondary,
+                          divider: widget.divider,
+                          isLast: !enabled,
+                        )
+                      else
+                        _row(
+                          label: 'Signed in as',
+                          sub: user.email ??
+                              user.userMetadata?['full_name'] ??
+                              'Google account',
+                          trailing: TextButton(
+                            onPressed: () => SyncService.instance.signOut(),
+                            child: const Text('Sign out',
+                                style: TextStyle(
+                                    fontSize: 12, color: AppColors.error)),
+                          ),
+                          textPrimary: widget.textPrimary,
+                          textSecondary: widget.textSecondary,
+                          divider: widget.divider,
+                          isLast: !enabled,
+                        ),
+                      // Enable toggle — only shown when signed in
+                      if (user != null)
+                        _row(
+                          label: 'Enable cloud sync',
+                          sub: 'Automatically sync data across your devices.',
+                          trailing: CupertinoSwitch(
+                            value: enabled,
+                            activeTrackColor: AppColors.royalBlue,
+                            onChanged: (v) =>
+                                SyncService.instance.setEnabled(v),
+                          ),
+                          textPrimary: widget.textPrimary,
+                          textSecondary: widget.textSecondary,
+                          divider: widget.divider,
+                          isLast: !enabled,
+                        ),
+                      if (enabled) ...[
                     // Last synced
                     _row(
-                      label: 'Last backup',
+                      label: 'Last sync',
                       sub: lastSync != null
                           ? _fmtDateTime(lastSync)
-                          : 'Never backed up',
+                          : 'Never synced',
                       trailing: isSyncing
                           ? const SizedBox(
                               width: 16,
@@ -1266,6 +1304,25 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
                               ),
                             )
                           : const SizedBox.shrink(),
+                      textPrimary: widget.textPrimary,
+                      textSecondary: widget.textSecondary,
+                      divider: widget.divider,
+                      isLast: false,
+                    ),
+                    // Auto-sync interval
+                    _row(
+                      label: 'Auto-sync every',
+                      sub: 'How often Keel syncs in the background',
+                      trailing: _Dropdown<int>(
+                        value: _intervalMinutes,
+                        items: const [5, 15, 30, 60],
+                        labels: const ['5 minutes', '15 minutes', '30 minutes', '1 hour'],
+                        isDark: widget.isDark,
+                        onChanged: (v) {
+                          setState(() => _intervalMinutes = v);
+                          SyncService.instance.setSyncIntervalMinutes(v);
+                        },
+                      ),
                       textPrimary: widget.textPrimary,
                       textSecondary: widget.textSecondary,
                       divider: widget.divider,
@@ -1313,6 +1370,8 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
         );
       },
     );
+  },
+);
   }
 
   String _fmtDateTime(DateTime dt) {
@@ -1334,6 +1393,87 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
     return '${dt.day} ${months[dt.month]} ${dt.year}, '
         '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ── Google sign-in row ────────────────────────────────────────────────────────────────────────────────────
+
+class _GoogleSignInRow extends StatefulWidget {
+  final bool isDark;
+  final Color surface, textPrimary, textSecondary, divider;
+  final bool isLast;
+  const _GoogleSignInRow({
+    required this.isDark,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.divider,
+    required this.isLast,
+  });
+  @override
+  State<_GoogleSignInRow> createState() => _GoogleSignInRowState();
+}
+
+class _GoogleSignInRowState extends State<_GoogleSignInRow> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sign in to enable sync',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: widget.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Your data is linked to your Google account '
+                  'and accessible on all your devices.',
+                  style: TextStyle(fontSize: 11, color: widget.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          FilledButton.icon(
+            onPressed: _loading
+                ? null
+                : () async {
+                    setState(() => _loading = true);
+                    await SyncService.instance.signInWithGoogle();
+                    if (mounted) setState(() => _loading = false);
+                  },
+            icon: _loading
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.login, size: 16),
+            label: Text(_loading ? 'Opening browser…' : 'Sign in with Google'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.royalBlue,
+              foregroundColor: Colors.white,
+              textStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

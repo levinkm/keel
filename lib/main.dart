@@ -35,6 +35,8 @@ class KeelApp extends StatefulWidget {
 
 class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
   bool _showSplash = true;
+  // Debounce foreground sync — don't re-sync if we just synced < 60s ago
+  DateTime? _lastForegroundSync;
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    SyncService.instance.stopAutoSync();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -53,6 +56,16 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused) {
       AuthService.instance.lock();
+    }
+    if (state == AppLifecycleState.resumed) {
+      // Sync on foreground if last sync was > 60 seconds ago
+      final now = DateTime.now();
+      final lastSync = _lastForegroundSync;
+      if (lastSync == null ||
+          now.difference(lastSync).inSeconds > 60) {
+        _lastForegroundSync = now;
+        SyncService.instance.sync(silent: true);
+      }
     }
   }
 
@@ -70,12 +83,17 @@ class _KeelAppState extends State<KeelApp> with WidgetsBindingObserver {
             ? SplashScreen(
                 onComplete: () {
                   setState(() => _showSplash = false);
-                  // Trigger auth immediately after splash if locked
                   if (AuthService.instance.isLocked.value) {
                     AuthService.instance.authenticate(
                       reason: 'Unlock Keel to access your financial data',
                     );
                   }
+                  // Start background sync timer after splash
+                  SyncService.instance.getSyncIntervalMinutes().then(
+                    (mins) => SyncService.instance.startAutoSync(
+                      intervalMinutes: mins,
+                    ),
+                  );
                 },
               )
             : ValueListenableBuilder<bool>(
