@@ -54,7 +54,7 @@ class SyncService {
   bool _syncing = false;
 
   // Tables in dependency order — parents before children.
-  // project_entries and settings handled separately (no standard id/updated_at).
+  // project_entries and settings handled separately (composite/no id PK).
   static const _tables = [
     'accounts',
     'strategies',
@@ -73,7 +73,6 @@ class SyncService {
     'holding_lots',
     'contacts',
     'projects',
-    'project_entries',
     'period_snapshots',
   ];
 
@@ -235,6 +234,11 @@ class SyncService {
       final sr = await _syncSettings(db: db, userId: userId, since: since);
       pushed += sr.$1;
       pulled += sr.$2;
+
+      // Sync project_entries separately (composite PK, no id column)
+      final pr = await _syncProjectEntries(db: db, userId: userId, since: since);
+      pushed += pr.$1;
+      pulled += pr.$2;
 
       final now = DateTime.now().toUtc();
       lastSyncAt.value = now;
@@ -445,6 +449,80 @@ class SyncService {
     return (pushed, pulled);
   }
 
+  /// Sync project_entries (composite PK: project_id + journal_entry_id).
+  Future<(int, int)> _syncProjectEntries({
+    required Database db,
+    required String userId,
+    required DateTime? since,
+  }) async {
+    int pushed = 0;
+    int pulled = 0;
+
+    final localRows = since == null
+        ? await db.query('project_entries')
+        : await db.query(
+            'project_entries',
+            where: 'updated_at > ?',
+            whereArgs: [since.toIso8601String()],
+          );
+
+    if (localRows.isNotEmpty) {
+      final toUpsert =
+          localRows.map((r) => {...r, 'user_id': userId}).toList();
+      await _client.from('keel_project_entries').upsert(
+            toUpsert,
+            onConflict: 'project_id,journal_entry_id',
+          );
+      pushed += localRows.length;
+    }
+
+    var query = _client
+        .from('keel_project_entries')
+        .select()
+        .eq('user_id', userId)
+        .isFilter('deleted_at', null);
+    if (since != null) {
+      query = query.gt('updated_at', since.toIso8601String());
+    }
+    final remoteRows = await query.limit(5000);
+
+    for (final remote in remoteRows) {
+      final projectId = remote['project_id'] as String?;
+      final entryId = remote['journal_entry_id'] as String?;
+      if (projectId == null || entryId == null) continue;
+      final exists = await db.query(
+        'project_entries',
+        where: 'project_id = ? AND journal_entry_id = ?',
+        whereArgs: [projectId, entryId],
+        limit: 1,
+      );
+      if (exists.isEmpty) {
+        await db.insert(
+          'project_entries',
+          _toLocalRow(remote),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        pulled++;
+      }
+    }
+
+    final deleted = await _client
+        .from('keel_project_entries')
+        .select('project_id, journal_entry_id')
+        .eq('user_id', userId)
+        .not('deleted_at', 'is', null);
+
+    for (final row in deleted) {
+      await db.delete(
+        'project_entries',
+        where: 'project_id = ? AND journal_entry_id = ?',
+        whereArgs: [row['project_id'], row['journal_entry_id']],
+      );
+    }
+
+    return (pushed, pulled);
+  }
+
   // ── Full restore (setup / first launch on new device) ──────────────────────
 
   /// Pull ALL remote data and replace local DB entirely.
@@ -463,6 +541,7 @@ class SyncService {
         for (final table in _tables.reversed) {
           await txn.delete(table);
         }
+        await txn.delete('project_entries');
         await txn.delete('settings');
 
         for (final table in _tables) {
@@ -481,6 +560,23 @@ class SyncService {
             );
             pulled++;
           }
+        }
+
+        // Restore project_entries (composite PK)
+        final projectEntryRows = await _client
+            .from('keel_project_entries')
+            .select()
+            .eq('user_id', userId)
+            .isFilter('deleted_at', null)
+            .limit(10000);
+
+        for (final row in projectEntryRows) {
+          await txn.insert(
+            'project_entries',
+            _toLocalRow(row),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          pulled++;
         }
 
         final settingsRows = await _client
