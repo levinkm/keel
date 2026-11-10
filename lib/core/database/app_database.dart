@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
   static const _dbName = 'keel.db';
-  static const _dbVersion = 13;
+  static const _dbVersion = 14;
 
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
@@ -130,6 +130,32 @@ class AppDatabase {
           "ALTER TABLE holdings ADD COLUMN compounding_freq TEXT NOT NULL DEFAULT 'none'");
       await db.execute(
           'ALTER TABLE holdings ADD COLUMN maturity_date TEXT');
+    }
+    if (oldVersion < 14) {
+      // Add updated_at and deleted_at to all tables for incremental sync
+      const tables = [
+        'accounts', 'journal_entries', 'journal_lines', 'budget_plans',
+        'budget_lines', 'strategies', 'strategy_buckets', 'loans',
+        'loan_events', 'income_streams', 'assets', 'holdings',
+        'holding_lots', 'contacts', 'projects', 'project_entries',
+        'entry_attachments', 'asset_attachments', 'period_snapshots',
+      ];
+      final now = DateTime.now().toUtc().toIso8601String();
+      for (final t in tables) {
+        try {
+          await db.execute(
+            "ALTER TABLE $t ADD COLUMN updated_at TEXT NOT NULL DEFAULT '$now'");
+        } catch (_) {} // column may already exist
+        try {
+          await db.execute(
+            'ALTER TABLE $t ADD COLUMN deleted_at TEXT');
+        } catch (_) {}
+      }
+      // settings table uses key as PK, no id — add updated_at only
+      try {
+        await db.execute(
+          "ALTER TABLE settings ADD COLUMN updated_at TEXT NOT NULL DEFAULT '$now'");
+      } catch (_) {}
     }
   }
 

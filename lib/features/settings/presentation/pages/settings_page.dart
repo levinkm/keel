@@ -1112,11 +1112,19 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
       _isError = false;
     });
     try {
-      await SyncService.instance.backup();
-      setState(() => _message = 'Backup complete.');
+      final result = await SyncService.instance.sync();
+      if (result.hasError) {
+        setState(() { _message = result.error; _isError = true; });
+      } else {
+        final conflicts = result.conflicts > 0
+            ? ' (${result.conflicts} conflict${result.conflicts == 1 ? '' : 's'} resolved)'
+            : '';
+        setState(() => _message =
+            'Sync complete. ${result.pushed} pushed, ${result.pulled} pulled$conflicts.');
+      }
     } catch (e) {
       setState(() {
-        _message = 'Backup failed: $e';
+        _message = 'Sync failed: $e';
         _isError = true;
       });
     }
@@ -1196,10 +1204,14 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
       _isError = false;
     });
     try {
-      await SyncService.instance.restore();
-      setState(
-        () => _message = 'Restore complete. Restart the app to see your data.',
-      );
+      final result = await SyncService.instance.restore();
+      if (result.hasError) {
+        setState(() { _message = result.error; _isError = true; });
+      } else {
+        setState(
+          () => _message = 'Restore complete. Restart the app to see your data.',
+        );
+      }
     } catch (e) {
       setState(() {
         _message = 'Restore failed: $e';
@@ -1259,11 +1271,11 @@ class _CloudBackupCardState extends State<_CloudBackupCard> {
                       divider: widget.divider,
                       isLast: false,
                     ),
-                    // Backup now
+                    // Sync now
                     _actionRow(
-                      icon: Icons.cloud_upload_outlined,
-                      label: 'Back up now',
-                      sub: 'Push all local data to Supabase',
+                      icon: Icons.sync_outlined,
+                      label: 'Sync now',
+                      sub: 'Push local changes and pull remote changes',
                       color: AppColors.royalBlue,
                       textPrimary: widget.textPrimary,
                       textSecondary: widget.textSecondary,

@@ -30,11 +30,13 @@ class _StepWelcomeState extends State<StepWelcome> {
 
   Future<void> _restore(BuildContext context) async {
     setState(() => _restoring = true);
-    try {
-      await SyncService.instance.restore();
-      if (context.mounted) context.read<SetupCubit>().skipToStep(SetupStep.done);
-    } catch (e) {
-      if (mounted) setState(() => _restoring = false);
+    final cubit = context.read<SetupCubit>();
+    final result = await SyncService.instance.restore();
+    if (!mounted) return;
+    if (result.hasError) {
+      setState(() => _restoring = false);
+    } else {
+      cubit.skipToStep(SetupStep.done);
     }
   }
 
