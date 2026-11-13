@@ -61,6 +61,9 @@ import 'package:keel/features/projects/domain/repositories/project_repository.da
 import 'package:keel/features/projects/presentation/bloc/projects_cubit.dart';
 import 'package:keel/features/reports/presentation/bloc/reports_cubit.dart';
 import 'package:keel/features/setup/presentation/bloc/setup_cubit.dart';
+import 'package:keel/features/tariffs/data/datasources/tariff_local_datasource.dart';
+import 'package:keel/features/tariffs/data/repositories/tariff_repository_impl.dart';
+import 'package:keel/features/tariffs/domain/repositories/tariff_repository.dart';
 import 'injector.dart';
 
 Future<void> initDependencies() async {
@@ -213,6 +216,14 @@ Future<void> initDependencies() async {
     getIt<InvestmentsRepository>(),
     getIt<AssetsRepository>(),
   ));
+
+  // Tariffs
+  getIt.registerLazySingleton<TariffLocalDatasource>(
+    () => TariffLocalDatasource(getIt()),
+  );
+  getIt.registerLazySingleton<TariffRepository>(
+    () => TariffRepositoryImpl(getIt()),
+  );
 
   // Setup
   getIt.registerFactory(() => SetupCubit(

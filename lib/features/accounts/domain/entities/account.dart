@@ -9,6 +9,8 @@ class Account {
   final Liquidity liquidity;
   final bool isActive;
   final DateTime createdAt;
+  /// Maximum negative balance allowed (minor units). null or 0 = no overdraft.
+  final int? overdraftLimitMinor;
 
   const Account({
     required this.id,
@@ -18,5 +20,8 @@ class Account {
     required this.liquidity,
     required this.isActive,
     required this.createdAt,
+    this.overdraftLimitMinor,
   });
+
+  bool get hasOverdraft => (overdraftLimitMinor ?? 0) > 0;
 }

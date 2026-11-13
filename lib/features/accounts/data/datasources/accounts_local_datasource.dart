@@ -36,5 +36,6 @@ extension AccountMapper on Map<String, dynamic> {
         liquidity: Liquidity.values.byName(this['liquidity'] as String),
         isActive: (this['is_active'] as int) == 1,
         createdAt: DateTime.parse(this['created_at'] as String),
+        overdraftLimitMinor: this['overdraft_limit_minor'] as int?,
       );
 }

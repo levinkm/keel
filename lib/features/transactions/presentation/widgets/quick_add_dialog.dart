@@ -10,6 +10,9 @@ import 'package:keel/features/ledger/domain/entities/journal_entry.dart';
 import 'package:keel/features/ledger/presentation/bloc/ledger_cubit.dart';
 import 'package:keel/features/projects/domain/entities/project.dart';
 import 'package:keel/features/projects/domain/repositories/project_repository.dart';
+import 'package:keel/features/tariffs/domain/entities/tariff.dart';
+import 'package:keel/features/tariffs/domain/repositories/tariff_repository.dart';
+import 'package:keel/features/tariffs/domain/tariff_engine.dart';
 import 'package:uuid/uuid.dart';
 
 enum _EntryType { expense, income, transfer }
@@ -23,6 +26,7 @@ void showQuickAddDialog(
   ProjectRepository? projectRepository,
   ContactRepository? contactRepository,
   AccountsRepository? accountsRepository,
+  TariffRepository? tariffRepository,
 }) {
   showDialog(
     context: context,
@@ -34,6 +38,7 @@ void showQuickAddDialog(
       projectRepository: projectRepository,
       contactRepository: contactRepository,
       accountsRepository: accountsRepository,
+      tariffRepository: tariffRepository,
     ),
   );
 }
@@ -46,6 +51,7 @@ class _QuickAddDialog extends StatefulWidget {
   final ProjectRepository? projectRepository;
   final ContactRepository? contactRepository;
   final AccountsRepository? accountsRepository;
+  final TariffRepository? tariffRepository;
 
   const _QuickAddDialog({
     required this.accounts,
@@ -55,6 +61,7 @@ class _QuickAddDialog extends StatefulWidget {
     this.projectRepository,
     this.contactRepository,
     this.accountsRepository,
+    this.tariffRepository,
   });
 
   @override
@@ -75,10 +82,44 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
   final DateTime _date = DateTime.now();
   bool _saving = false;
 
+  // Tariff fee state
+  Tariff? _activeTariff;
+  FeeResult _fee = const FeeResult.zero();
+
   @override
   void initState() {
     super.initState();
     _accounts = List.of(widget.accounts);
+    _amountController.addListener(_recomputeFee);
+  }
+
+  Future<void> _loadTariffForAccount(String? accountId) async {
+    if (accountId == null || widget.tariffRepository == null) {
+      setState(() { _activeTariff = null; _fee = const FeeResult.zero(); });
+      return;
+    }
+    final op = switch (_type) {
+      _EntryType.transfer => TariffOperation.transfer,
+      _EntryType.income   => TariffOperation.deposit,
+      _EntryType.expense  => TariffOperation.withdrawal,
+    };
+    final result = await widget.tariffRepository!.getTariffsForAccount(accountId);
+    final tariffs = result.fold((_) => <Tariff>[], (t) => t);
+    final matched = tariffs.cast<Tariff?>().firstWhere(
+      (t) => t!.operation == op,
+      orElse: () => null,
+    );
+    setState(() {
+      _activeTariff = matched;
+      _fee = matched != null
+          ? TariffEngine.compute(matched, _amountMinor)
+          : const FeeResult.zero();
+    });
+  }
+
+  void _recomputeFee() {
+    if (_activeTariff == null) return;
+    setState(() => _fee = TariffEngine.compute(_activeTariff!, _amountMinor));
   }
 
   @override
@@ -138,6 +179,44 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
       _EntryType.transfer => (_toAccountId!, _fromAccountId!),
     };
 
+    final lines = [
+      JournalLine(
+        id: const Uuid().v4(),
+        entryId: entryId,
+        accountId: debitId,
+        amountMinor: _amountMinor,
+        currency: 'KES',
+        side: JournalSide.debit,
+      ),
+      JournalLine(
+        id: const Uuid().v4(),
+        entryId: entryId,
+        accountId: creditId,
+        amountMinor: _amountMinor,
+        currency: 'KES',
+        side: JournalSide.credit,
+      ),
+      // Fee line: debit fee expense account, credit from-account (cash out)
+      if (_fee.totalMinor > 0 && _activeTariff?.feeAccountId != null) ...[
+        JournalLine(
+          id: const Uuid().v4(),
+          entryId: entryId,
+          accountId: _activeTariff!.feeAccountId!,
+          amountMinor: _fee.totalMinor,
+          currency: 'KES',
+          side: JournalSide.debit,
+        ),
+        JournalLine(
+          id: const Uuid().v4(),
+          entryId: entryId,
+          accountId: _fromAccountId!,
+          amountMinor: _fee.totalMinor,
+          currency: 'KES',
+          side: JournalSide.credit,
+        ),
+      ],
+    ];
+
     final entry = JournalEntry(
       id: entryId,
       date: _date,
@@ -146,24 +225,7 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
       isLocked: false,
       createdAt: now,
       tags: List.of(_tags),
-      lines: [
-        JournalLine(
-          id: const Uuid().v4(),
-          entryId: entryId,
-          accountId: debitId,
-          amountMinor: _amountMinor,
-          currency: 'KES',
-          side: JournalSide.debit,
-        ),
-        JournalLine(
-          id: const Uuid().v4(),
-          entryId: entryId,
-          accountId: creditId,
-          amountMinor: _amountMinor,
-          currency: 'KES',
-          side: JournalSide.credit,
-        ),
-      ],
+      lines: lines,
     );
 
     await widget.cubit.postEntry(entry);
@@ -282,6 +344,8 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
                   _type = v;
                   _fromAccountId = null;
                   _toAccountId = null;
+                  _activeTariff = null;
+                  _fee = const FeeResult.zero();
                 }),
                 isDark: isDark,
               ),
@@ -495,8 +559,10 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
                           value: _fromAccountId,
                           accounts: _fromAccounts,
                           isDark: isDark,
-                          onChanged: (v) =>
-                              setState(() => _fromAccountId = v),
+                          onChanged: (v) {
+                            setState(() => _fromAccountId = v);
+                            _loadTariffForAccount(v);
+                          },
                           onCreateAccount:
                               widget.accountsRepository != null
                                   ? () => _createAccount(AccountType.asset)
@@ -532,6 +598,36 @@ class _QuickAddDialogState extends State<_QuickAddDialog> {
                 ],
               ),
               const SizedBox(height: 28),
+
+              // Fee preview
+              if (_fee.totalMinor > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.receipt_long_outlined,
+                          size: 14, color: AppColors.warning),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_activeTariff!.provider} fee: KES ${(_fee.feeMinor / 100).toStringAsFixed(2)}'  
+                          '${_fee.taxMinor > 0 ? ' + KES ${(_fee.taxMinor / 100).toStringAsFixed(2)} excise' : ''}'  
+                          ' = KES ${(_fee.totalMinor / 100).toStringAsFixed(2)} total',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.warning),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // Actions
               Row(

@@ -104,7 +104,8 @@ class IncomeCubit extends Cubit<IncomeState> {
     // ── Period validation ────────────────────────────────────────────────────
     // Only allow marking received in the last 7 days of the period or after.
     // Irregular/one-off streams are exempt.
-    if (stream.frequency != IncomeFrequency.irregular &&
+    if (stream.paymentMode != PaymentMode.milestone &&
+        !stream.frequency.isIrregular &&
         stream.type != IncomeType.oneOff) {
       final now = DateTime.now();
       final parts = current.selectedPeriod.split('-');

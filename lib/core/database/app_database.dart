@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
   static const _dbName = 'keel.db';
-  static const _dbVersion = 14;
+  static const _dbVersion = 17;
 
   AppDatabase._();
   static final AppDatabase instance = AppDatabase._();
@@ -157,6 +157,19 @@ class AppDatabase {
           "ALTER TABLE settings ADD COLUMN updated_at TEXT NOT NULL DEFAULT '$now'");
       } catch (_) {}
     }
+    if (oldVersion < 15) {
+      await db.execute('ALTER TABLE income_streams ADD COLUMN frequency_unit TEXT');
+      await db.execute('ALTER TABLE income_streams ADD COLUMN frequency_interval INTEGER');
+      await db.execute("ALTER TABLE income_streams ADD COLUMN payment_mode TEXT NOT NULL DEFAULT 'regular'");
+    }
+    if (oldVersion < 16) {
+      await db.execute('ALTER TABLE accounts ADD COLUMN overdraft_limit_minor INTEGER');
+      await db.execute("ALTER TABLE loans ADD COLUMN rate_period TEXT NOT NULL DEFAULT 'annual'");
+    }
+    if (oldVersion < 17) {
+      await db.execute('ALTER TABLE tariffs ADD COLUMN account_id TEXT NOT NULL DEFAULT \'\'');
+      await db.execute('ALTER TABLE tariffs ADD COLUMN fee_account_id TEXT');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -168,6 +181,7 @@ class AppDatabase {
         currency TEXT NOT NULL DEFAULT 'KES',
         liquidity TEXT NOT NULL DEFAULT 'instant',
         is_active INTEGER NOT NULL DEFAULT 1,
+        overdraft_limit_minor INTEGER,
         created_at TEXT NOT NULL
       )
     ''');
@@ -252,6 +266,7 @@ class AppDatabase {
         currency TEXT NOT NULL DEFAULT 'KES',
         interest_method TEXT NOT NULL,
         annual_rate_bp INTEGER NOT NULL,
+        rate_period TEXT NOT NULL DEFAULT 'annual',
         term_months INTEGER NOT NULL,
         disbursement_date TEXT NOT NULL,
         first_due_date TEXT NOT NULL,
@@ -284,6 +299,9 @@ class AppDatabase {
         type TEXT NOT NULL,
         account_id TEXT NOT NULL,
         frequency TEXT NOT NULL,
+        frequency_unit TEXT,
+        frequency_interval INTEGER,
+        payment_mode TEXT NOT NULL DEFAULT 'regular',
         amount_minor INTEGER NOT NULL,
         reliable_amount_minor INTEGER,
         currency TEXT NOT NULL DEFAULT 'KES',
@@ -374,6 +392,8 @@ class AppDatabase {
       CREATE TABLE tariffs (
         id TEXT PRIMARY KEY,
         provider TEXT NOT NULL,
+        account_id TEXT NOT NULL DEFAULT '',
+        fee_account_id TEXT,
         channel TEXT NOT NULL,
         operation TEXT NOT NULL,
         effective_from TEXT NOT NULL,

@@ -159,9 +159,8 @@ class LoanEngine {
         }
 
       case InterestMethod.flatRate:
-        final totalInterest = (p * (loan.annualRateBp / 10000) *
-                (n / 12))
-            .round();
+        // Total interest = principal × monthly_rate × term_months
+        final totalInterest = (p * loan.monthlyRate * n).round();
         final interestPerMonth = (totalInterest / n).round();
         final principalPerMonth = (p / n).round();
         final instalment = principalPerMonth + interestPerMonth;

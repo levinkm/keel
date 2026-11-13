@@ -1,18 +1,26 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:keel/core/auth/auth_service.dart';
 import 'package:keel/core/di/injector.dart';
 import 'package:keel/core/shortcuts/shortcut_service.dart';
 import 'package:keel/core/sync/sync_service.dart';
 import 'package:keel/core/theme/app_colors.dart';
+import 'package:keel/features/accounts/domain/entities/account.dart';
+import 'package:keel/features/accounts/domain/repositories/accounts_repository.dart';
 import 'package:keel/features/settings/presentation/bloc/settings_cubit.dart';
 import 'package:keel/core/widgets/page_shell.dart';
 import 'package:keel/core/widgets/shimmer.dart';
+import 'package:keel/features/tariffs/domain/entities/tariff.dart';
+import 'package:keel/features/tariffs/domain/repositories/tariff_repository.dart';
+import 'package:keel/features/tariffs/domain/tariff_csv_importer.dart';
+import 'package:keel/features/tariffs/presentation/tariff_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum _Section { profile, appearance, security, data, shortcuts, about }
+enum _Section { profile, appearance, security, data, shortcuts, tariffs, about }
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -195,6 +203,14 @@ class _SettingsPageState extends State<SettingsPage> {
         textTertiary: textTertiary,
         divider: divider,
       ),
+      _Section.tariffs => _TariffsSection(
+        isDark: isDark,
+        surface: surface,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        textTertiary: textTertiary,
+        divider: divider,
+      ),
       _Section.about => _AboutSection(
         isDark: isDark,
         surface: surface,
@@ -212,6 +228,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _Section.security => 'Security & Privacy',
     _Section.data => 'Data & Storage',
     _Section.shortcuts => 'Keyboard Shortcuts',
+    _Section.tariffs => 'Transaction Fees',
     _Section.about => 'About',
   };
 
@@ -221,6 +238,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _Section.security => Icons.shield_outlined,
     _Section.data => Icons.storage_outlined,
     _Section.shortcuts => Icons.keyboard_outlined,
+    _Section.tariffs => Icons.receipt_long_outlined,
     _Section.about => Icons.info_outline,
   };
 }
@@ -2186,6 +2204,403 @@ class _AboutSection extends StatelessWidget {
         ),
     ],
   );
+}
+
+// ── Tariffs section ──────────────────────────────────────────────────────────
+
+class _TariffsSection extends StatefulWidget {
+  final bool isDark;
+  final Color surface, textPrimary, textSecondary, textTertiary, divider;
+  const _TariffsSection({
+    required this.isDark,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textTertiary,
+    required this.divider,
+  });
+  @override
+  State<_TariffsSection> createState() => _TariffsSectionState();
+}
+
+class _TariffsSectionState extends State<_TariffsSection> {
+  List<Tariff> _tariffs = [];
+  List<Account> _accounts = [];
+  bool _loading = true;
+
+  TariffRepository get _repo => getIt<TariffRepository>();
+  AccountsRepository get _accountsRepo => getIt<AccountsRepository>();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final tariffs = await _repo.getTariffs();
+    final accounts = await _accountsRepo.getAccounts();
+    setState(() {
+      _tariffs = tariffs.fold((_) => [], (t) => t);
+      _accounts = accounts.fold((_) => [], (a) => a);
+      _loading = false;
+    });
+  }
+
+  Future<void> _downloadTemplate() async {
+    try {
+      final result = await Process.run('osascript', [
+        '-e',
+        'POSIX path of (choose folder with prompt "Save template to")'
+      ]);
+      if (result.exitCode != 0) return;
+      final folder = (result.stdout as String).trim();
+      if (folder.isEmpty) return;
+      final path = '$folder/keel_tariff_template.csv';
+      await File(path).writeAsString(TariffCsvImporter.templateExample);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Template saved to $path'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _importCsv() async {
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (file == null) return;
+
+    final String content;
+    if (file.path != null) {
+      content = await File(file.path!).readAsString();
+    } else {
+      final bytes = await file.readAsBytes();
+      content = String.fromCharCodes(bytes);
+    }
+
+    final parsed = TariffCsvImporter.parse(content, _accounts);
+    if (!mounted) return;
+    _showImportResult(parsed);
+  }
+
+  void _showImportResult(TariffCsvImportResult result) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
+    final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: SizedBox(
+          width: 480,
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Import preview',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
+                const SizedBox(height: 8),
+                Text(
+                  '${result.tariffs.length} tariff rule${result.tariffs.length == 1 ? '' : 's'} parsed from ${result.rowsRead} rows.',
+                  style: TextStyle(fontSize: 13, color: textSecondary),
+                ),
+                if (result.hasErrors) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: result.errors.map((e) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning_amber_outlined, size: 13, color: AppColors.error),
+                            const SizedBox(width: 6),
+                            Expanded(child: Text(e, style: const TextStyle(fontSize: 12, color: AppColors.error))),
+                          ],
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ],
+                if (result.tariffs.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ...result.tariffs.map((t) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${t.provider} — ${t.operation.name} — ${t.tiers.length} tier${t.tiers.length == 1 ? '' : 's'}',
+                            style: TextStyle(fontSize: 13, color: textPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text('Cancel', style: TextStyle(fontSize: 14, color: textSecondary)),
+                    ),
+                    if (result.tariffs.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        color: AppColors.royalBlue,
+                        borderRadius: BorderRadius.circular(8),
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          for (final t in result.tariffs) {
+                            await _repo.createTariff(t);
+                          }
+                          await _load();
+                        },
+                        child: Text(
+                          'Import ${result.tariffs.length} rule${result.tariffs.length == 1 ? '' : 's'}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _accountName(String id) =>
+      _accounts.cast<Account?>().firstWhere((a) => a?.id == id, orElse: () => null)?.name ?? id;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _header('Transaction Fees', widget.textPrimary)),
+            OutlinedButton.icon(
+              onPressed: _importCsv,
+              icon: const Icon(Icons.upload_file_outlined, size: 15),
+              label: const Text('Import CSV'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.royalBlue,
+                side: const BorderSide(color: AppColors.royalBlue),
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => showTariffDialog(
+                context: context,
+                accounts: _accounts,
+                existing: null,
+                onSave: (t) async {
+                  await _repo.createTariff(t);
+                  await _load();
+                },
+              ),
+              icon: const Icon(Icons.add, size: 15),
+              label: const Text('Add rule'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.royalBlue,
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Define fee schedules for each account. Fees are automatically computed and shown when recording transactions.',
+          style: TextStyle(fontSize: 12, color: widget.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: _downloadTemplate,
+          child: Text(
+            'Download CSV template',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.royalBlue,
+              decoration: TextDecoration.underline,
+              decorationColor: AppColors.royalBlue,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        if (_loading)
+          const Center(child: CupertinoActivityIndicator())
+        else if (_tariffs.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: widget.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.receipt_long_outlined,
+                    size: 32, color: widget.textTertiary),
+                const SizedBox(height: 10),
+                Text('No tariff rules configured.',
+                    style: TextStyle(fontSize: 13, color: widget.textSecondary)),
+                const SizedBox(height: 4),
+                Text('Add a rule to automatically compute fees when recording transactions.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: widget.textTertiary)),
+              ],
+            ),
+          )
+        else
+          _card(widget.surface, [
+            ..._tariffs.asMap().entries.map((entry) {
+              final i = entry.key;
+              final t = entry.value;
+              final isLast = i == _tariffs.length - 1;
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.royalBlue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.receipt_long_outlined,
+                              size: 16, color: AppColors.royalBlue),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(t.provider,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: widget.textPrimary)),
+                                  const SizedBox(width: 8),
+                                  _OperationBadge(t.operation),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_accountName(t.accountId)}  •  ${t.tiers.length} tier${t.tiers.length == 1 ? '' : 's'}'
+                                '${t.taxRateBp > 0 ? '  •  ${(t.taxRateBp / 100).toStringAsFixed(1)}% excise' : ''}',
+                                style: TextStyle(fontSize: 11, color: widget.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          onPressed: () => showTariffDialog(
+                            context: context,
+                            accounts: _accounts,
+                            existing: t,
+                            onSave: (updated) async {
+                              await _repo.updateTariff(updated);
+                              await _load();
+                            },
+                          ),
+                          child: Text('Edit',
+                              style: TextStyle(
+                                  fontSize: 12, color: AppColors.royalBlue)),
+                        ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          onPressed: () async {
+                            await _repo.deleteTariff(t.id);
+                            await _load();
+                          },
+                          child: const Text('Delete',
+                              style: TextStyle(fontSize: 12, color: AppColors.error)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isLast)
+                    Divider(
+                      height: 1,
+                      color: widget.divider.withValues(alpha: 0.5),
+                      indent: 16,
+                      endIndent: 16,
+                    ),
+                ],
+              );
+            }),
+          ]),
+      ],
+    );
+  }
+}
+
+class _OperationBadge extends StatelessWidget {
+  final TariffOperation op;
+  const _OperationBadge(this.op);
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (op) {
+      TariffOperation.withdrawal => 'Withdraw',
+      TariffOperation.transfer => 'Transfer',
+      TariffOperation.deposit => 'Deposit',
+    };
+    final color = switch (op) {
+      TariffOperation.withdrawal => AppColors.warning,
+      TariffOperation.transfer => AppColors.royalBlue,
+      TariffOperation.deposit => AppColors.success,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────

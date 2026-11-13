@@ -294,6 +294,7 @@ extension IncomeStreamExt on IncomeStream {
         type: type,
         accountId: accountId,
         frequency: frequency,
+        paymentMode: paymentMode,
         amountMinor: amountMinor,
         reliableAmountMinor: reliableAmountMinor,
         currency: currency,

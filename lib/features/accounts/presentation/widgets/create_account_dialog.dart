@@ -26,6 +26,7 @@ class _CreateAccountDialog extends StatefulWidget {
 
 class _CreateAccountDialogState extends State<_CreateAccountDialog> {
   late final TextEditingController _nameController;
+  late final TextEditingController _overdraftCtrl;
   late AccountType _type;
   late Liquidity _liquidity;
   bool _saving = false;
@@ -39,17 +40,26 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
     _nameController.addListener(() => setState(() {}));
     _type = widget.existing?.type ?? AccountType.asset;
     _liquidity = widget.existing?.liquidity ?? Liquidity.instant;
+    final existingOverdraft = widget.existing?.overdraftLimitMinor;
+    _overdraftCtrl = TextEditingController(
+        text: existingOverdraft != null && existingOverdraft > 0
+            ? (existingOverdraft / 100).toStringAsFixed(0)
+            : '');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _overdraftCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_valid) return;
     setState(() => _saving = true);
+    final overdraftMinor = _type == AccountType.asset
+        ? ((double.tryParse(_overdraftCtrl.text.trim()) ?? 0) * 100).round()
+        : 0;
     final account = Account(
       id: widget.existing?.id ?? const Uuid().v4(),
       name: _nameController.text.trim(),
@@ -58,6 +68,7 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
       liquidity: _liquidity,
       isActive: widget.existing?.isActive ?? true,
       createdAt: widget.existing?.createdAt ?? DateTime.now(),
+      overdraftLimitMinor: overdraftMinor > 0 ? overdraftMinor : null,
     );
     if (widget.existing != null) {
       await context.read<AccountsCubit>().updateAccount(account);
@@ -161,7 +172,34 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                 onChanged: (v) => setState(() => _liquidity = v),
                 isDark: isDark,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 16),
+
+              // Overdraft limit — only relevant for asset accounts
+              if (_type == AccountType.asset) ...[
+                _FieldLabel('Overdraft limit (KES, optional)', textSecondary),
+                const SizedBox(height: 6),
+                CupertinoTextField(
+                  controller: _overdraftCtrl,
+                  keyboardType: TextInputType.number,
+                  placeholder: 'e.g. 50000  —  leave blank for none',
+                  style: TextStyle(fontSize: 14, color: textPrimary),
+                  placeholderStyle: TextStyle(fontSize: 14, color: textSecondary),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurfaceElevated
+                        : AppColors.lightSurfaceSecondary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'The maximum amount this account balance can go negative.',
+                  style: TextStyle(fontSize: 11, color: textSecondary),
+                ),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 12),
 
               // Actions
               Row(

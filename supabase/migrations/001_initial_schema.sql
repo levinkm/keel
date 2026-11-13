@@ -17,6 +17,7 @@ create table if not exists keel_accounts (
   currency     text not null default 'KES',
   liquidity    text not null default 'instant',
   is_active    boolean not null default true,
+  overdraft_limit_minor bigint,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
   deleted_at   timestamptz
@@ -184,6 +185,7 @@ create table if not exists keel_loans (
   currency            text not null default 'KES',
   interest_method     text not null,
   annual_rate_bp      integer not null,
+  rate_period         text not null default 'annual',
   term_months         integer not null,
   disbursement_date   text not null,
   first_due_date      text not null,
@@ -237,6 +239,9 @@ create table if not exists keel_income_streams (
   type                    text not null,
   account_id              text not null,
   frequency               text not null,
+  frequency_unit          text,
+  frequency_interval      integer,
+  payment_mode            text not null default 'regular',
   amount_minor            bigint not null,
   reliable_amount_minor   bigint,
   currency                text not null default 'KES',
@@ -455,8 +460,27 @@ create policy "Users manage own asset attachments"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- =============================================================================
--- PERIOD SNAPSHOTS
+create table if not exists keel_tariffs (
+  id             text primary key,
+  user_id        uuid not null references auth.users(id) on delete cascade,
+  provider       text not null,
+  account_id     text not null default '',
+  fee_account_id text,
+  channel        text not null,
+  operation      text not null,
+  effective_from text not null,
+  effective_to   text,
+  tiers          text not null,
+  tax_rate_bp    integer not null default 0,
+  updated_at     timestamptz not null default now(),
+  deleted_at     timestamptz
+);
+
+alter table keel_tariffs enable row level security;
+create policy "Users manage own tariffs"
+  on keel_tariffs for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 -- =============================================================================
 create table if not exists keel_period_snapshots (
   id                        text primary key,

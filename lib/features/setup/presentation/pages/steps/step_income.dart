@@ -94,7 +94,7 @@ class _IncomeRow {
   final TextEditingController nameController;
   final TextEditingController amountController;
   IncomeType type = IncomeType.salary;
-  IncomeFrequency frequency = IncomeFrequency.monthly;
+  IncomeFrequency frequency = const IncomeFrequency.monthly();
   String depositAccount = '';
 
   _IncomeRow({String name = ''})
@@ -148,9 +148,9 @@ class _IncomeRowWidget extends StatelessWidget {
             child: SetupDropdown<IncomeFrequency>(
               value: row.frequency,
               items: const [
-                (IncomeFrequency.monthly, 'Monthly'),
-                (IncomeFrequency.weekly, 'Weekly'),
-                (IncomeFrequency.irregular, 'Irregular'),
+                (IncomeFrequency(unit: FrequencyUnit.month, interval: 1), 'Monthly'),
+                (IncomeFrequency(unit: FrequencyUnit.week,  interval: 1), 'Weekly'),
+                (IncomeFrequency(unit: FrequencyUnit.month, interval: 0), 'Irregular'),
               ],
               onChanged: onChanged,
               onSelect: (v) => row.frequency = v,

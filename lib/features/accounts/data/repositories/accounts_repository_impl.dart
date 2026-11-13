@@ -39,6 +39,7 @@ class AccountsRepositoryImpl implements AccountsRepository {
         'currency': account.currency,
         'liquidity': account.liquidity.name,
         'is_active': 1,
+        'overdraft_limit_minor': account.overdraftLimitMinor,
         'created_at': DateTime.now().toIso8601String(),
       };
       await _datasource.insertAccount(data);
@@ -58,6 +59,7 @@ class AccountsRepositoryImpl implements AccountsRepository {
         'currency': account.currency,
         'liquidity': account.liquidity.name,
         'is_active': account.isActive ? 1 : 0,
+        'overdraft_limit_minor': account.overdraftLimitMinor,
         'created_at': account.createdAt.toIso8601String(),
       });
       return const Right(null);

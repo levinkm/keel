@@ -107,6 +107,7 @@ class _SplashScreenState extends State<SplashScreen>
                       fontSize: 13,
                       color: textSecondary,
                       letterSpacing: 0.2,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                 ),

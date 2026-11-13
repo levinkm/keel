@@ -2,6 +2,7 @@ enum LoanDirection { borrowed, lent }
 enum InterestMethod { reducingBalance, flatRate, fixedFee }
 enum LoanStatus { active, settled, writtenOff }
 enum LoanEventType { disbursement, instalment, prepayment, rateChange, fee, penalty, topUp }
+enum RatePeriod { annual, monthly }
 
 class LoanEvent {
   final String id;
@@ -30,7 +31,8 @@ class Loan {
   final int principalMinor;
   final String currency;
   final InterestMethod interestMethod;
-  final int annualRateBp; // basis points, e.g. 1400 = 14%
+  final int annualRateBp; // basis points of the stated rate (annual or monthly depending on ratePeriod)
+  final RatePeriod ratePeriod;
   final int termMonths;
   final DateTime disbursementDate;
   final DateTime firstDueDate;
@@ -48,6 +50,7 @@ class Loan {
     required this.currency,
     required this.interestMethod,
     required this.annualRateBp,
+    this.ratePeriod = RatePeriod.annual,
     required this.termMonths,
     required this.disbursementDate,
     required this.firstDueDate,
@@ -58,5 +61,8 @@ class Loan {
     required this.createdAt,
   });
 
-  double get monthlyRate => annualRateBp / 10000 / 12;
+  /// Always returns the effective monthly rate regardless of ratePeriod.
+  double get monthlyRate => ratePeriod == RatePeriod.monthly
+      ? annualRateBp / 10000
+      : annualRateBp / 10000 / 12;
 }

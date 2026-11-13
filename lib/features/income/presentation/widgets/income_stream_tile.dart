@@ -128,12 +128,7 @@ class IncomeStreamTile extends StatelessWidget {
         IncomeType.oneOff => Icons.bolt_outlined,
       };
 
-  String _freqLabel(IncomeFrequency f) => switch (f) {
-        IncomeFrequency.monthly => 'Monthly',
-        IncomeFrequency.weekly => 'Weekly',
-        IncomeFrequency.irregular => 'Irregular',
-        IncomeFrequency.scheduled => 'Scheduled',
-      };
+  String _freqLabel(IncomeFrequency f) => f.label;
 
   String _fmt(int minor) {
     final v = minor / 100;

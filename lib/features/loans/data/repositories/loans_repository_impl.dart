@@ -75,6 +75,7 @@ class LoansRepositoryImpl implements LoansRepository {
         'currency': loan.currency,
         'interest_method': loan.interestMethod.name,
         'annual_rate_bp': loan.annualRateBp,
+        'rate_period': loan.ratePeriod.name,
         'term_months': loan.termMonths,
         'disbursement_date': loan.disbursementDate.toIso8601String(),
         'first_due_date': loan.firstDueDate.toIso8601String(),
@@ -93,6 +94,9 @@ class LoansRepositoryImpl implements LoansRepository {
         currency: r['currency'] as String,
         interestMethod: InterestMethod.values.byName(r['interest_method'] as String),
         annualRateBp: r['annual_rate_bp'] as int,
+        ratePeriod: r['rate_period'] != null
+            ? RatePeriod.values.byName(r['rate_period'] as String)
+            : RatePeriod.annual,
         termMonths: r['term_months'] as int,
         disbursementDate: DateTime.parse(r['disbursement_date'] as String),
         firstDueDate: DateTime.parse(r['first_due_date'] as String),

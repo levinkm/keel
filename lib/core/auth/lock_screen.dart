@@ -156,9 +156,7 @@ class _LockScreenState extends State<LockScreen>
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: _failed
-                            ? AppColors.error
-                            : Colors.white.withValues(alpha: 0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
 
@@ -422,47 +420,14 @@ class _FingerprintRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = failed ? AppColors.error : AppColors.royalBlue;
-
     return AnimatedBuilder(
       animation: pulseCtrl,
       builder: (_, _) {
         final pulse = authenticating ? pulseCtrl.value : 0.0;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            // Outer pulse ring
-            if (authenticating)
-              Container(
-                width: 96 + pulse * 24,
-                height: 96 + pulse * 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.15 + pulse * 0.1),
-                    width: 1,
-                  ),
-                ),
-              ),
-            // Inner ring
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withValues(alpha: 0.1 + pulse * 0.08),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.4 + pulse * 0.3),
-                  width: 1.5,
-                ),
-              ),
-              child: Icon(
-                Icons.fingerprint,
-                size: 48,
-                color: color.withValues(alpha: 0.6 + pulse * 0.4),
-              ),
-            ),
-          ],
+        return Icon(
+          Icons.fingerprint,
+          size: 64,
+          color: Colors.white.withValues(alpha: 0.5 + pulse * 0.4),
         );
       },
     );

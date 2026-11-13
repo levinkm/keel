@@ -193,6 +193,7 @@ class LoansCubit extends Cubit<LoansState> {
         currency: loan.currency,
         interestMethod: loan.interestMethod,
         annualRateBp: loan.annualRateBp,
+        ratePeriod: loan.ratePeriod,
         termMonths: loan.termMonths,
         disbursementDate: loan.disbursementDate,
         firstDueDate: loan.firstDueDate,

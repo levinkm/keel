@@ -37,24 +37,36 @@ class _LoanDialogState extends State<_LoanDialog> {
   late TextEditingController _termCtrl;
   late LoanDirection _direction;
   late InterestMethod _method;
+  late RatePeriod _ratePeriod;
   late bool _salaryDeducted;
   late DateTime _disbursementDate;
   late DateTime _firstDueDate;
+
+  // Per-field error messages — set on save attempt
+  String? _counterpartyError;
+  String? _principalError;
+  String? _rateError;
+  String? _termError;
+  String? _dateError;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
     _counterpartyCtrl = TextEditingController(text: e?.counterparty ?? '');
-    _counterpartyCtrl.addListener(() => setState(() {}));
+    _counterpartyCtrl.addListener(() => setState(() { _counterpartyError = null; }));
     _principalCtrl = TextEditingController(
         text: e != null ? (e.principalMinor / 100).toStringAsFixed(0) : '');
+    _principalCtrl.addListener(() => setState(() { _principalError = null; }));
     _rateCtrl = TextEditingController(
         text: e != null ? (e.annualRateBp / 100).toStringAsFixed(1) : '');
+    _rateCtrl.addListener(() => setState(() { _rateError = null; }));
     _termCtrl = TextEditingController(
         text: e != null ? '${e.termMonths}' : '');
+    _termCtrl.addListener(() => setState(() { _termError = null; }));
     _direction = e?.direction ?? LoanDirection.borrowed;
     _method = e?.interestMethod ?? InterestMethod.reducingBalance;
+    _ratePeriod = e?.ratePeriod ?? RatePeriod.annual;
     _salaryDeducted = e?.isSalaryDeducted ?? false;
     _disbursementDate = e?.disbursementDate ?? DateTime.now();
     _firstDueDate = e?.firstDueDate ??
@@ -70,19 +82,61 @@ class _LoanDialogState extends State<_LoanDialog> {
     super.dispose();
   }
 
-  bool get _valid =>
-      _counterpartyCtrl.text.trim().isNotEmpty &&
-      (double.tryParse(_principalCtrl.text) ?? 0) > 0 &&
-      (int.tryParse(_termCtrl.text) ?? 0) > 0;
+  /// Validates all fields, populates error strings, returns true if valid.
+  bool _validate() {
+    bool ok = true;
+    setState(() {
+      _counterpartyError = _counterpartyCtrl.text.trim().isEmpty
+          ? 'Counterparty name is required'
+          : null;
+      final principal = double.tryParse(_principalCtrl.text.trim());
+      _principalError = principal == null
+          ? 'Enter a valid number'
+          : principal <= 0
+              ? 'Principal must be greater than zero'
+              : null;
+      final rate = double.tryParse(_rateCtrl.text.trim());
+      _rateError = rate == null
+          ? 'Enter a valid rate'
+          : rate < 0
+              ? 'Rate cannot be negative'
+              : null;
+      final term = int.tryParse(_termCtrl.text.trim());
+      _termError = term == null
+          ? 'Enter a whole number of months'
+          : term <= 0
+              ? 'Term must be at least 1 month'
+              : null;
+      _dateError = !_firstDueDate.isAfter(_disbursementDate)
+          ? 'First due date must be after disbursement date'
+          : null;
+      ok = _counterpartyError == null &&
+          _principalError == null &&
+          _rateError == null &&
+          _termError == null &&
+          _dateError == null;
+    });
+    return ok;
+  }
 
   int get _computedInstalment {
     final p = ((double.tryParse(_principalCtrl.text) ?? 0) * 100).round();
     final n = int.tryParse(_termCtrl.text) ?? 1;
     final rateBp = ((double.tryParse(_rateCtrl.text) ?? 0) * 100).round();
-    final r = rateBp / 10000 / 12;
+    // Build a temporary loan to reuse monthlyRate logic
+    final tempLoan = Loan(
+      id: '', direction: _direction, counterparty: '',
+      principalMinor: p, currency: 'KES',
+      interestMethod: _method, annualRateBp: rateBp, ratePeriod: _ratePeriod,
+      termMonths: n, disbursementDate: _disbursementDate,
+      firstDueDate: _firstDueDate, instalmentMinor: 0,
+      isSalaryDeducted: false, status: LoanStatus.active,
+      createdAt: DateTime.now(),
+    );
+    final r = tempLoan.monthlyRate;
     if (_method == InterestMethod.fixedFee || r == 0) return p ~/ n;
     if (_method == InterestMethod.flatRate) {
-      final totalInterest = (p * (rateBp / 10000) * (n / 12)).round();
+      final totalInterest = (p * r * n).round();
       return ((p + totalInterest) / n).round();
     }
     // Reducing balance
@@ -91,6 +145,10 @@ class _LoanDialogState extends State<_LoanDialog> {
     return (p * r * pow / (pow - 1)).round();
   }
 
+  bool get _canPreview =>
+      (double.tryParse(_principalCtrl.text) ?? 0) > 0 &&
+      (int.tryParse(_termCtrl.text) ?? 0) > 0;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -98,8 +156,6 @@ class _LoanDialogState extends State<_LoanDialog> {
     final elevated = isDark ? AppColors.darkSurfaceElevated : AppColors.lightSurfaceSecondary;
     final textPrimary = isDark ? AppColors.darkText : AppColors.lightText;
     final textSecondary = isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
-
-    final instalment = _computedInstalment;
 
     return Dialog(
       backgroundColor: surface,
@@ -115,9 +171,7 @@ class _LoanDialogState extends State<_LoanDialog> {
             children: [
               Text(widget.existing == null ? 'Add loan' : 'Edit loan',
                   style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: textPrimary)),
+                      fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
               const SizedBox(height: 24),
 
               // Direction
@@ -146,13 +200,20 @@ class _LoanDialogState extends State<_LoanDialog> {
                 style: TextStyle(fontSize: 14, color: textPrimary),
                 placeholderStyle: TextStyle(fontSize: 14, color: textSecondary),
                 decoration: BoxDecoration(
-                    color: elevated, borderRadius: BorderRadius.circular(8)),
+                  color: elevated,
+                  borderRadius: BorderRadius.circular(8),
+                  border: _counterpartyError != null
+                      ? Border.all(color: AppColors.error, width: 1)
+                      : null,
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
+              if (_counterpartyError != null) _ErrorText(_counterpartyError!),
               const SizedBox(height: 16),
 
-              // Principal + Rate side by side
+              // Principal + Rate + Term
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -166,14 +227,17 @@ class _LoanDialogState extends State<_LoanDialog> {
                           placeholder: '0',
                           onChanged: (_) => setState(() {}),
                           style: TextStyle(fontSize: 14, color: textPrimary),
-                          placeholderStyle:
-                              TextStyle(fontSize: 14, color: textSecondary),
+                          placeholderStyle: TextStyle(fontSize: 14, color: textSecondary),
                           decoration: BoxDecoration(
-                              color: elevated,
-                              borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
+                            color: elevated,
+                            borderRadius: BorderRadius.circular(8),
+                            border: _principalError != null
+                                ? Border.all(color: AppColors.error, width: 1)
+                                : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
+                        if (_principalError != null) _ErrorText(_principalError!),
                       ],
                     ),
                   ),
@@ -182,7 +246,12 @@ class _LoanDialogState extends State<_LoanDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Label('Annual rate (%)', textSecondary),
+                        _Label(
+                          _ratePeriod == RatePeriod.monthly
+                              ? 'Monthly rate (%)'
+                              : 'Annual rate (%)',
+                          textSecondary,
+                        ),
                         const SizedBox(height: 6),
                         CupertinoTextField(
                           controller: _rateCtrl,
@@ -190,13 +259,27 @@ class _LoanDialogState extends State<_LoanDialog> {
                           placeholder: '0.0',
                           onChanged: (_) => setState(() {}),
                           style: TextStyle(fontSize: 14, color: textPrimary),
-                          placeholderStyle:
-                              TextStyle(fontSize: 14, color: textSecondary),
+                          placeholderStyle: TextStyle(fontSize: 14, color: textSecondary),
                           decoration: BoxDecoration(
-                              color: elevated,
-                              borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
+                            color: elevated,
+                            borderRadius: BorderRadius.circular(8),
+                            border: _rateError != null
+                                ? Border.all(color: AppColors.error, width: 1)
+                                : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        if (_rateError != null) _ErrorText(_rateError!),
+                        const SizedBox(height: 6),
+                        // Rate period toggle inline under the rate field
+                        _Segmented<RatePeriod>(
+                          value: _ratePeriod,
+                          options: const [
+                            (RatePeriod.annual, 'Annual'),
+                            (RatePeriod.monthly, 'Monthly'),
+                          ],
+                          onChanged: (v) => setState(() => _ratePeriod = v),
+                          isDark: isDark,
                         ),
                       ],
                     ),
@@ -214,14 +297,17 @@ class _LoanDialogState extends State<_LoanDialog> {
                           placeholder: '12',
                           onChanged: (_) => setState(() {}),
                           style: TextStyle(fontSize: 14, color: textPrimary),
-                          placeholderStyle:
-                              TextStyle(fontSize: 14, color: textSecondary),
+                          placeholderStyle: TextStyle(fontSize: 14, color: textSecondary),
                           decoration: BoxDecoration(
-                              color: elevated,
-                              borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
+                            color: elevated,
+                            borderRadius: BorderRadius.circular(8),
+                            border: _termError != null
+                                ? Border.all(color: AppColors.error, width: 1)
+                                : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
+                        if (_termError != null) _ErrorText(_termError!),
                       ],
                     ),
                   ),
@@ -246,6 +332,7 @@ class _LoanDialogState extends State<_LoanDialog> {
 
               // Dates
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -256,7 +343,10 @@ class _LoanDialogState extends State<_LoanDialog> {
                         _DatePicker(
                           value: _disbursementDate,
                           isDark: isDark,
-                          onChanged: (d) => setState(() => _disbursementDate = d),
+                          onChanged: (d) => setState(() {
+                            _disbursementDate = d;
+                            _dateError = null;
+                          }),
                         ),
                       ],
                     ),
@@ -271,16 +361,23 @@ class _LoanDialogState extends State<_LoanDialog> {
                         _DatePicker(
                           value: _firstDueDate,
                           isDark: isDark,
-                          onChanged: (d) => setState(() => _firstDueDate = d),
+                          onChanged: (d) => setState(() {
+                            _firstDueDate = d;
+                            _dateError = null;
+                          }),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
+              if (_dateError != null) ...[
+                const SizedBox(height: 4),
+                _ErrorText(_dateError!),
+              ],
               const SizedBox(height: 16),
 
-              // Salary deducted toggle
+              // Salary deducted
               GestureDetector(
                 onTap: () => setState(() => _salaryDeducted = !_salaryDeducted),
                 child: Row(
@@ -289,13 +386,9 @@ class _LoanDialogState extends State<_LoanDialog> {
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
-                        color: _salaryDeducted
-                            ? AppColors.royalBlue
-                            : Colors.transparent,
+                        color: _salaryDeducted ? AppColors.royalBlue : Colors.transparent,
                         border: Border.all(
-                          color: _salaryDeducted
-                              ? AppColors.royalBlue
-                              : AppColors.slateBlue,
+                          color: _salaryDeducted ? AppColors.royalBlue : AppColors.slateBlue,
                           width: 2,
                         ),
                         borderRadius: BorderRadius.circular(4),
@@ -312,22 +405,21 @@ class _LoanDialogState extends State<_LoanDialog> {
               ),
 
               // Computed instalment preview
-              if (_valid) ...[
+              if (_canPreview) ...[
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppColors.royalBlue.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calculate_outlined,
+                      const Icon(Icons.calculate_outlined,
                           size: 14, color: AppColors.royalBlue),
                       const SizedBox(width: 8),
                       Text(
-                        'Computed instalment: KES ${_fmtMinor(instalment)}',
+                        'Computed instalment: KES ${_fmtMinor(_computedInstalment)}',
                         style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -343,19 +435,17 @@ class _LoanDialogState extends State<_LoanDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text('Cancel',
                         style: TextStyle(fontSize: 14, color: textSecondary)),
                   ),
                   const SizedBox(width: 8),
                   CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 10),
-                    color: _valid ? AppColors.royalBlue : AppColors.disabledSurface,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    color: AppColors.royalBlue,
                     borderRadius: BorderRadius.circular(8),
-                    onPressed: _valid ? _save : null,
+                    onPressed: _save,
                     child: const Text('Save',
                         style: TextStyle(
                             fontSize: 14,
@@ -372,10 +462,9 @@ class _LoanDialogState extends State<_LoanDialog> {
   }
 
   void _save() {
-    final principal =
-        ((double.tryParse(_principalCtrl.text) ?? 0) * 100).round();
-    final rateBp =
-        ((double.tryParse(_rateCtrl.text) ?? 0) * 100).round();
+    if (!_validate()) return;
+    final principal = ((double.tryParse(_principalCtrl.text) ?? 0) * 100).round();
+    final rateBp = ((double.tryParse(_rateCtrl.text) ?? 0) * 100).round();
     final term = int.tryParse(_termCtrl.text) ?? 1;
     widget.onSave(Loan(
       id: widget.existing?.id ?? const Uuid().v4(),
@@ -385,6 +474,7 @@ class _LoanDialogState extends State<_LoanDialog> {
       currency: 'KES',
       interestMethod: _method,
       annualRateBp: rateBp,
+      ratePeriod: _ratePeriod,
       termMonths: term,
       disbursementDate: _disbursementDate,
       firstDueDate: _firstDueDate,
@@ -401,6 +491,19 @@ class _LoanDialogState extends State<_LoanDialog> {
     return v.toStringAsFixed(0).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+class _ErrorText extends StatelessWidget {
+  final String text;
+  const _ErrorText(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(text,
+            style: const TextStyle(fontSize: 11, color: AppColors.error)),
+      );
 }
 
 class _Label extends StatelessWidget {
@@ -433,8 +536,7 @@ class _Segmented<T> extends StatelessWidget {
             onTap: () => onChanged(o.$1),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
                 color: sel
                     ? AppColors.royalBlue

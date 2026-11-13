@@ -43,8 +43,10 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
   late TextEditingController _nameCtrl;
   late TextEditingController _amountCtrl;
   late TextEditingController _reliableCtrl;
+  late TextEditingController _intervalCtrl;
   late IncomeType _type;
-  late IncomeFrequency _frequency;
+  late FrequencyUnit _freqUnit;
+  late PaymentMode _paymentMode;
   String? _accountId;
 
   @override
@@ -53,6 +55,8 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
     final e = widget.existing;
     _nameCtrl = TextEditingController(text: e?.name ?? '');
     _nameCtrl.addListener(() => setState(() {}));
+    _intervalCtrl = TextEditingController();
+    _intervalCtrl.addListener(() => setState(() {}));
     _amountCtrl = TextEditingController(
         text: e != null ? (e.amountMinor / 100).toStringAsFixed(0) : '');
     _reliableCtrl = TextEditingController(
@@ -60,8 +64,11 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
             ? (e!.reliableAmountMinor! / 100).toStringAsFixed(0)
             : '');
     _type = e?.type ?? IncomeType.salary;
-    _frequency = e?.frequency ?? IncomeFrequency.monthly;
-    _accountId = e?.accountId.isEmpty ?? true ? null : e?.accountId;
+    _freqUnit = e?.frequency.unit ?? FrequencyUnit.month;
+    final existingInterval = e?.frequency.interval ?? 1;
+    _intervalCtrl.text = existingInterval == 0 ? '' : existingInterval.toString();
+    _paymentMode = e?.paymentMode ?? PaymentMode.regular;
+    _accountId = (e?.accountId.isEmpty ?? true) ? null : e?.accountId;
     if (_accountId != null && !widget.accounts.any((a) => a.id == _accountId)) {
       _accountId = null;
     }
@@ -72,10 +79,16 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
     _nameCtrl.dispose();
     _amountCtrl.dispose();
     _reliableCtrl.dispose();
+    _intervalCtrl.dispose();
     super.dispose();
   }
 
   bool get _valid => _nameCtrl.text.trim().isNotEmpty;
+
+  IncomeFrequency get _frequency {
+    final interval = int.tryParse(_intervalCtrl.text.trim()) ?? 0;
+    return IncomeFrequency(unit: _freqUnit, interval: interval);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,17 +149,59 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
 
               _Label('Frequency', textSecondary),
               const SizedBox(height: 6),
-              _SegmentedPicker<IncomeFrequency>(
-                value: _frequency,
-                options: const [
-                  (IncomeFrequency.monthly, 'Monthly'),
-                  (IncomeFrequency.weekly, 'Weekly'),
-                  (IncomeFrequency.irregular, 'Irregular'),
-                  (IncomeFrequency.scheduled, 'Scheduled'),
+              Row(
+                children: [
+                  _SegmentedPicker<FrequencyUnit>(
+                    value: _freqUnit,
+                    options: const [
+                      (FrequencyUnit.day,   'Days'),
+                      (FrequencyUnit.week,  'Weeks'),
+                      (FrequencyUnit.month, 'Months'),
+                    ],
+                    onChanged: (v) => setState(() => _freqUnit = v),
+                    isDark: isDark,
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 80,
+                    child: CupertinoTextField(
+                      controller: _intervalCtrl,
+                      keyboardType: TextInputType.number,
+                      placeholder: 'Every N',
+                      style: TextStyle(fontSize: 14, color: textPrimary),
+                      placeholderStyle: TextStyle(fontSize: 14, color: textSecondary),
+                      decoration: BoxDecoration(
+                          color: elevated, borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _frequency = v),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _frequency.isIrregular ? 'Irregular (no fixed schedule)' : _frequency.label,
+                style: TextStyle(fontSize: 11, color: textSecondary),
+              ),
+              const SizedBox(height: 16),
+
+              _Label('Payment mode', textSecondary),
+              const SizedBox(height: 6),
+              _SegmentedPicker<PaymentMode>(
+                value: _paymentMode,
+                options: const [
+                  (PaymentMode.regular,   'Regular'),
+                  (PaymentMode.milestone, 'Milestone / Partial'),
+                ],
+                onChanged: (v) => setState(() => _paymentMode = v),
                 isDark: isDark,
               ),
+              if (_paymentMode == PaymentMode.milestone) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Payments arrive as deposits or milestones — no period window restriction.',
+                  style: TextStyle(fontSize: 11, color: textSecondary),
+                ),
+              ],
               const SizedBox(height: 16),
 
               Row(
@@ -264,6 +319,7 @@ class _IncomeStreamDialogState extends State<_IncomeStreamDialog> {
       type: _type,
       accountId: _accountId ?? '',
       frequency: _frequency,
+      paymentMode: _paymentMode,
       amountMinor: amount.round(),
       reliableAmountMinor: reliable?.round(),
       currency: 'KES',

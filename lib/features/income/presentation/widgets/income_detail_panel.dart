@@ -438,12 +438,7 @@ class IncomeDetailPanel extends StatelessWidget {
         IncomeType.oneOff => 'One-off',
       };
 
-  String _freqLabel(IncomeFrequency f) => switch (f) {
-        IncomeFrequency.monthly => 'Monthly',
-        IncomeFrequency.weekly => 'Weekly',
-        IncomeFrequency.irregular => 'Irregular',
-        IncomeFrequency.scheduled => 'Scheduled',
-      };
+  String _freqLabel(IncomeFrequency f) => f.label;
 
   String _periodLabel(String period) {
     const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',

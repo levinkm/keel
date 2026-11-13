@@ -74,7 +74,7 @@ class StepPreview extends StatelessWidget {
                 : Column(
                     children: state.incomeStreams.map((s) => _SummaryRow(
                           label: s.name,
-                          value: '${s.type.name} · ${s.frequency.name} · KES ${_fmt(s.amountMinor)}',
+                          value: '${s.type.name} · ${s.frequency.label} · KES ${_fmt(s.amountMinor)}',
                           isDark: isDark,
                         )).toList(),
                   ),
