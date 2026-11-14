@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -17,13 +18,19 @@ import 'features/settings/domain/repositories/settings_repository.dart';
 import 'features/settings/presentation/bloc/settings_cubit.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
-  await initDependencies();
-  await ShortcutService.instance.init(getIt<SettingsRepository>());
-  await AuthService.instance.init();
-  await SyncService.instance.init();
-  runApp(const KeelApp());
+  await runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await dotenv.load(fileName: '.env');
+    await initDependencies();
+    await ShortcutService.instance.init(getIt<SettingsRepository>());
+    await AuthService.instance.init();
+    await SyncService.instance.init();
+    runApp(const KeelApp());
+  }, (error, stack) {
+    // Swallow Supabase network errors (offline token refresh) silently.
+    // All other errors are ignored at zone level — sync errors are
+    // surfaced through SyncService.lastResult instead.
+  });
 }
 
 class KeelApp extends StatefulWidget {
